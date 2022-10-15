@@ -12,6 +12,13 @@ jobs:
     - name: Checkout
       uses: actions/checkout@v1
 
+    - uses: docker://pandoc/core:2.9
+      with:
+        args: >-
+          --standalone
+          --output=git-rebase.html
+          git-rebase.md
+
     - name: Configure AWS Credentials
       uses: aws-actions/configure-aws-credentials@v1
       with:
@@ -20,5 +27,5 @@ jobs:
         aws-region: eu-west-1
 
     - name: Deploy static site to S3 bucket
-      run: aws s3 sync . s3://i.ting.st --exclude "*" --include "index.html" --size-only --delete
+      run: aws s3 sync . s3://i.ting.st --exclude "*" --include "*.html" --size-only --delete
 
