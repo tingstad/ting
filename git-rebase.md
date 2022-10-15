@@ -9,7 +9,7 @@ in combination with [`git commit --fixup`][commit fixup] is useful to know, but 
 
 I will demonstrate two usages:
 1. [exec](#exec)
-2. [sequence.editor](#sequenceeditor)
+2. [sequence-editor](#sequence-editor)
 
 ## exec
 
@@ -46,7 +46,7 @@ But a lot more than tests can be accomplished, for example changing author of se
 git rebase -i --exec 'git commit --amend --reset-author --no-edit' fd8e16b
 ```
 
-## sequence.editor
+## sequence-editor
 
 Git, being a good Unix tool, respects your `$SHELL` and `$EDITOR` environment variables.
 
