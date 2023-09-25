@@ -45,6 +45,12 @@
   </div>
 
 <script>
+['load', 'resize'].forEach(evnt => window.addEventListener(evnt,
+    function() {
+        document.body.style.height = window.innerHeight + 'px';
+    })
+);
+
 (async function f() {
 
 let filenames = [
