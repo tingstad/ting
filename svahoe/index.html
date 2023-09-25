@@ -107,7 +107,7 @@ let slider = document.getElementById('slider');
 let max = slider.getAttribute('max');
 
 // populate positions array:
-let pos = [[],[]];
+let pos = parsed.map(_ => []);
 let startTime = parsed.map(run =>
     run.tracks[0].points[0].time.getTime());
 let index = parsed.map(_ => 0);
