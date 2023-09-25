@@ -53,7 +53,7 @@ let filenames = [
 let filesPromise = Promise.all(filenames.map(name =>
     fetch(name).then(resp => resp.text())));
 
-let map = L.map('map').setView([51.505, -0.09], 13);
+let map = L.map('map').setView([62.721, 9.467], 13);
 
 let tile = L.tileLayer('http://{s}.google.com/vt/lyrs=s,h&x={x}&y={y}&z={z}',{
     maxZoom: 20,
