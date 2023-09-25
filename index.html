@@ -2,29 +2,11 @@
 <html lang="en">
     <head>
         <meta charset="utf-8">
-        <meta name="description" content="img">
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <title>Data:URL</title>
+        <title>Nil</title>
     </head>
     <body>
-        <div id="body"></div>
-        <script type="text/javascript">
-            if (window.location.hash) {
-                if (window.location.hash.match(/^#data:image\/[a-z]+[;,]/)) {
-                    var img = document.createElement('img');
-                    img.src = window.location.hash.substring(1);
-                    document.getElementById('body').appendChild(img);
-                } else if (window.location.hash.match(/^#data:/)) {
-                    var iframe = document.createElement('iframe');
-                    iframe.sandbox = 'allow-scripts allow-forms allow-top-navigation allow-popups allow-modals allow-popups-to-escape-sandbox';
-                    iframe.src = window.location.hash.substring(1);
-                    document.getElementById('body').appendChild(iframe);
-                }
-            }
-            if (document.getElementById('body').childNodes.length == 0) {
-                document.getElementById('body').innerHTML = '<p>No valid data hash. Try <a href="#data:image/gif;base64,R0lGODlhEAAQAMQAAORHHOVSKudfOulrSOp3WOyDZu6QdvCchPGolfO0o/XBs/fNwfjZ0frl3/zy7////wAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAACH5BAkAABAALAAAAAAQABAAAAVVICSOZGlCQAosJ6mu7fiyZeKqNKToQGDsM8hBADgUXoGAiqhSvp5QAnQKGIgUhwFUYLCVDFCrKUE1lBavAViFIDlTImbKC5Gm2hB0SlBCBMQiB0UjIQA7">image</a> or <a href="#data:text/html,%3Ch1%3EHello%2C%20world%21%3C%2Fh1%3E">text</a>. (You may need to refresh page.)'
-            }
-        </script>
+        <h1>No content</h1>
     </body>
 </html>
 

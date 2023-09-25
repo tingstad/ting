@@ -2,7 +2,7 @@
 
 ## data-url-display
 
-http://i.ting.st/#data:text/plain,Hello
+http://i.ting.st/url.html#data:text/plain,Hello
 
 ## Git rebase article
 
