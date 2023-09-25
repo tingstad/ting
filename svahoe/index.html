@@ -104,15 +104,15 @@ let markers = filenames.map((filename, idx) => {
 });
 
 let slider = document.getElementById('slider');
-let steps = slider.getAttribute('max');
+let max = slider.getAttribute('max');
 
 // populate positions array:
 let pos = [[],[]];
 let startTime = parsed.map(run =>
     run.tracks[0].points[0].time.getTime());
 let index = parsed.map(_ => 0);
-for (let i = 0; i <= steps; i++) {
-    let time = maxTime * i / steps;
+for (let i = 0; i <= max; i++) {
+    let time = maxTime * i / max;
     for (let runIdx in parsed) {
         let points = parsed[runIdx].tracks[0].points;
         while (index[runIdx] < points.length - 1 &&
@@ -123,7 +123,7 @@ for (let i = 0; i <= steps; i++) {
 }
 
 slider.addEventListener('input', function(e) {
-    let time = maxTime * this.value / steps;
+    let time = maxTime * this.value / max;
     document.getElementById("time").innerHTML = formatTime(time);
     for (let run in parsed) {
         let point = pos[run][this.value];
@@ -131,7 +131,7 @@ slider.addEventListener('input', function(e) {
     }
 });
 slider.disabled = false;
-slider.value = steps / 4;
+slider.value = max / 4;
 slider.dispatchEvent(new Event('input', { bubbles: true, cancelable: true }));
 
 function formatTime(millis) {
