@@ -36,7 +36,8 @@
   <div id="map"></div>
   <div id="info">
     <div id="timeline">
-      Start <input id="slider" type="range" min="0" max="2000" step="1" value="0"> Mål
+      Start <input id="slider" type="range" disabled
+                min="0" max="2000" step="1" value="0"> Mål
     </div>
     <div id="time">00:00:00</div>
   </div>
@@ -121,6 +122,7 @@ slider.addEventListener('input', function(e) {
         markers[run].setLatLng([point.lat, point.lon]);
     }
 });
+slider.disabled = false;
 slider.value = steps / 4;
 slider.dispatchEvent(new Event('input', { bubbles: true, cancelable: true }));
 
