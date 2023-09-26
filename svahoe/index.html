@@ -116,8 +116,10 @@ for (let i = 0; i <= max; i++) {
     for (let runIdx in parsed) {
         let points = parsed[runIdx].tracks[0].points;
         while (index[runIdx] < points.length - 1 &&
-                points[index[runIdx]++].time.getTime()
-                - startTime[runIdx] < time);
+                points[index[runIdx]].time.getTime()
+                - startTime[runIdx] < time) {
+            index[runIdx]++;
+        }
         pos[runIdx][i] = points[index[runIdx]];
     }
 }
