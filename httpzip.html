@@ -161,23 +161,56 @@ Accept-Encoding: gzip, deflate
 
 
                 </section>
+
             </div>
         </div>
 
-        <script src="dist/reveal.js"></script>
-        <script src="plugin/notes/notes.js"></script>
-        <script src="plugin/markdown/markdown.js"></script>
-        <script src="plugin/highlight/highlight.js"></script>
+        <script crossorigin="anonymous" referrerpolicy="no-referrer"
+            src="https://cdnjs.cloudflare.com/ajax/libs/reveal.js/5.1.0/reveal.min.js"
+            integrity="sha512-sMRSj1Ns64C2OE6VNS7WrV63OHW7dLAvi96CXRoy9AEe/tKF+868fhUJpc5ZKS166lwhe2ArCYjFitLJUY+VWA==">
+        </script>
+        <script crossorigin="anonymous" referrerpolicy="no-referrer"
+            src="https://cdnjs.cloudflare.com/ajax/libs/reveal.js/5.1.0/plugin/highlight/highlight.min.js"
+            integrity="sha512-xkVKkN0o7xECTHSUZ9zdsBYRXiAKH7CZ3aICpW6aQJZsufVVRLhEBTDjTpC1tPzm+gNZiOeW174zXAB2fOLsTg==">
+        </script>
         <script>
             // More info about initialization & config:
             // - https://revealjs.com/initialization/
             // - https://revealjs.com/config/
             Reveal.initialize({
                 hash: true, //progress: false,
-
+                view: 'scroll',
                 // Learn about plugins: https://revealjs.com/plugins/
-                plugins: [ RevealMarkdown, RevealHighlight, RevealNotes ]
+                plugins: [RevealHighlight]//[ RevealMarkdown, RevealHighlight, RevealNotes ]
             });
+            const go = (n) => {
+                // https://github.com/hakimel/reveal.js/blob/5.1.0/js/controllers/scrollview.js
+                const viewportElement = Reveal.getViewportElement();
+                const scrollTriggerHeight = viewportElement.offsetHeight;
+                viewportElement.scrollTo({
+                    "top": viewportElement.scrollTop + n * scrollTriggerHeight,
+                    "behavior": "smooth"
+            });
+            const next = () => go(1);
+            const previous = () => go(-1);
+            // see https://github.com/hakimel/reveal.js/blob/5.1.0/js/controllers/keyboard.js
+            Object.entries({
+                32: 'SPACE',
+                78: 'N',
+                74: 'J',
+                76: 'L',
+                39: 'RIGHT',
+                40: 'DOWN',
+            }).forEach(([keyCode, key]) =>
+                Reveal.addKeyBinding({ keyCode, key, description: 'Next slide' }, next));
+            Object.entries({
+                80: 'P',
+                75: 'K',
+                72: 'H',
+                37: 'LEFT',
+                38: 'UP',
+            }).forEach(([keyCode, key]) =>
+                Reveal.addKeyBinding({ keyCode, key, description: 'Previous slide' }, previous));
         </script>
     </body>
 </html>
