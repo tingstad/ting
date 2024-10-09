@@ -88,26 +88,26 @@
                     </code></pre>
                 </section>
                 <section>
-                    <pre>
-                 FILE.ZIP
-                 ┌───────────────────┐
-      Local file │ PK\3\4 2344 bytes │<╮
-          header │ chapter1.txt      │ │
-                 │ [COMPRESSED DATA] │ │
-                 ├───────────────────┤ │
-             -"- │ PK\3\4 3210 bytes │<┼─╮
-                 │ chapter2.txt      │ │ │
-                 │ [COMPRESSED DATA] │ │ │
-                 ├───────────────────┤ │ │
-         Central │ PK\1\2 2344 bytes │<┼─┼─╮
-       directory │ chapter1.txt offs─┼─╯ │ │
-                 │ PK\1\2 3210 bytes │   │ │
-                 │ chapter2.txt offs─┼───╯ │
-                 ├───────────────────┤     │
-            EOCD │ PK\5\6    CD size │     │
-                 │           CD offs─┼─────╯
-                 └───────────────────┘
-                    </pre>
+                    <pre style="width: auto; display: inline-block; margin: 0 auto;">
+           FILE.ZIP
+           ┌───────────────────┐
+Local file │ PK\3\4 2344 bytes │<╮
+    header │ chapter1.txt      │ │
+           │ [COMPRESSED DATA] │ │
+           ├───────────────────┤ │
+       -"- │ PK\3\4 3210 bytes │<┼─╮
+           │ chapter2.txt      │ │ │
+           │ [COMPRESSED DATA] │ │ │
+           ├───────────────────┤ │ │
+   Central │ PK\1\2 2344 bytes │<┼─┼─╮
+ directory │ chapter1.txt offs─┼─╯ │ │
+           │ PK\1\2 3210 bytes │   │ │
+           │ chapter2.txt offs─┼───╯ │
+           ├───────────────────┤     │
+      EOCD │ PK\5\6    CD size │     │
+           │           CD offs─┼─────╯
+           └───────────────────┘
+              </pre>
                 </section>
                 <section data-auto-animate>
                     <h2 style="text-transform: none;">RFC 9110 HTTP Semantics</h2>
