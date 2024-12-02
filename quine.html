@@ -26,9 +26,6 @@
     />
 
     <style>
-        .reveal section>h2, .reveal section>h3 { text-transform: none; }
-        .reveal .slides section .fragment.fun { opacity: 0; }
-        .reveal .slides section .fragment.fun.visible { opacity: 1; }
     </style>
 </head>
 
@@ -103,13 +100,19 @@ startxref
 <img src="https://upload.wikimedia.org/wikipedia/commons/9/95/%E9%AB%98%E6%A9%9F%E6%A8%A1%E6%A7%98%E8%A3%82-Textile_fragment_with_incomplete_repeating_pattern_of_loom%2C_weaver%2C_and_drawboy_MET_DP11389.jpg" />
 </section>
 
-<section>
+<section data-auto-animate>
 <h3>Quine</h3>
 <p>Self-replicating program</p>
-<p>takes no input and produces a copy of its own source code as its only output</p>
-<div class="codeline fragment fun"><pre><code class="python">print("")</code></pre></div>
-<div class="codeline fragment fun"><pre><code class="python">print("print(\"\")")</code></pre></div>
-<div class="codeline fragment fun"><pre><code class="python">
+<p>no input =&gt; copy of own source code</p>
+<div class="fragment"><pre><code class="python">print("")</code></pre></div>
+<div class="fragment"><pre><code class="python">print("print(\"\")")</code></pre></div>
+</section>
+
+<section data-auto-animate>
+<h3>Quine</h3>
+<p>Self-replicating program</p>
+<p>no input =&gt; copy of own source code</p>
+<div><pre><code class="python">
 c = """
 c = {1}{0}{1}
 print(c.format(c, '"'*3))
@@ -255,20 +258,6 @@ R 457 0 R 4 0 R 458 0 R 4 0 R 459 0 R 4 0 R 460 0 R 4 0 R 21 0 R 4 0 R
         68: 'D',
     }).forEach(([keyCode, key]) =>
         Reveal.addKeyBinding({ keyCode, key, description: 'Jump to next slide' }, jumpNext));
-
-    Reveal.on('fragmentshown', (event) => {
-        const fragment = event.fragment;
-        if (fragment.classList.contains('codeline')) {
-            const idx = fragment.dataset.fragmentIndex;
-            const fragments = document.getElementsByClassName('codeline');
-            if (idx == fragments.length - 1) {
-                console.log('show ' + idx+ ' of ' + fragments.length, event.fragment);
-                for (let i = 0; i < idx; i++) {
-                    fragments[i].classList.remove('visible');
-                }
-            }
-        }
-    });
 </script>
 </body>
 </html>
