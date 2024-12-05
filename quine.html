@@ -591,7 +591,6 @@ R</span> <span class="c1">24 0 R</span> <span class="c3">460 0 R</span> 9 0 R 34
     // - https://revealjs.com/initialization/
     // - https://revealjs.com/config/
     Reveal.initialize({
-        hash: true, //progress: false,
         view: 'scroll',
 
         ...alt,
@@ -608,6 +607,11 @@ R</span> <span class="c1">24 0 R</span> <span class="c3">460 0 R</span> 9 0 R 34
             "behavior": "smooth"
         });
     };
+    Reveal.on('slidechanged', (event) => {
+        const h = "#/" + event.currentSlide.dataset.indexH;
+        if (window.location.hash != h)
+            window.location = h;
+    });
     const next = () => go(1);
     const previous = () => go(-1);
     const jump = (n) => {
