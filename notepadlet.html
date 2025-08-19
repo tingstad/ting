@@ -1,0 +1,141 @@
+<html onclick="" class=""><head><meta charset=utf-8><title>Notepadlet</title><!--
+The MIT License (MIT)
+
+Copyright (c) 2016 Jesse Luoto
+
+Permission is hereby granted, free of charge, to any person obtaining a copy of
+this software and associated documentation files (the "Software"), to deal in
+the Software without restriction, including without limitation the rights to
+use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of
+the Software, and to permit persons to whom the Software is furnished to do so,
+subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS
+FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR
+COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER
+IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
+CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+--><!--
+Original code by Jesse Luoto
+  https://thejunkland.com/blog/improving-on-the-in-browser-notepad-script.html
+  CSS patterns by Lea Verou / Divya Manian
+  https://projects.verou.me/css3patterns/#madras
+Modified by Richard H. Tingstad
+  https://www.ting.st/notepadlet.html
+-->
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<style type="text/css">
+html {
+    padding: 0px 5px 40px;
+    background-color: #EEE;
+    background-image: repeating-linear-gradient(45deg, transparent 5px, hsla(197, 62%, 11%, 0.5) 5px, hsla(197, 62%, 11%, 0.5) 10px, hsla(5, 53%, 63%, 0) 10px, hsla(5, 53%, 63%, 0) 35px, hsla(5, 53%, 63%, 0.5) 35px, hsla(5, 53%, 63%, 0.5) 40px, hsla(197, 62%, 11%, 0.5) 40px, hsla(197, 62%, 11%, 0.5) 50px, hsla(197, 62%, 11%, 0) 50px, hsla(197, 62%, 11%, 0) 60px, hsla(5, 53%, 63%, 0.5) 60px, hsla(5, 53%, 63%, 0.5) 70px, hsla(35, 91%, 65%, 0.5) 70px, hsla(35, 91%, 65%, 0.5) 80px, hsla(35, 91%, 65%, 0) 80px, hsla(35, 91%, 65%, 0) 90px, hsla(5, 53%, 63%, 0.5) 90px, hsla(5, 53%, 63%, 0.5) 110px, hsla(5, 53%, 63%, 0) 110px, hsla(5, 53%, 63%, 0) 120px, hsla(197, 62%, 11%, 0.5) 120px, hsla(197, 62%, 11%, 0.5) 140px ), repeating-linear-gradient(135deg, transparent 5px, hsla(197, 62%, 11%, 0.5) 5px, hsla(197, 62%, 11%, 0.5) 10px, hsla(5, 53%, 63%, 0) 10px, hsla(5, 53%, 63%, 0) 35px, hsla(5, 53%, 63%, 0.5) 35px, hsla(5, 53%, 63%, 0.5) 40px, hsla(197, 62%, 11%, 0.5) 40px, hsla(197, 62%, 11%, 0.5) 50px, hsla(197, 62%, 11%, 0) 50px, hsla(197, 62%, 11%, 0) 60px, hsla(5, 53%, 63%, 0.5) 60px, hsla(5, 53%, 63%, 0.5) 70px, hsla(35, 91%, 65%, 0.5) 70px, hsla(35, 91%, 65%, 0.5) 80px, hsla(35, 91%, 65%, 0) 80px, hsla(35, 91%, 65%, 0) 90px, hsla(5, 53%, 63%, 0.5) 90px, hsla(5, 53%, 63%, 0.5) 110px, hsla(5, 53%, 63%, 0) 110px, hsla(5, 53%, 63%, 0) 140px, hsla(197, 62%, 11%, 0.5) 140px, hsla(197, 62%, 11%, 0.5) 160px );
+}
+body {
+    max-width: 800px;
+    margin: 10px auto;
+    background: #FAFAFA;
+    padding: 10px 26px 10px 97px;
+    box-sizing: border-box;
+    min-height: 110%;
+    font: 100 24px "American typewriter", serif;
+    box-shadow: 0px 4px 15px 0px rgba(0,0,0,0.15), 0px 0px 1px 1px rgba(0,0,0,0.1);
+    background-image: linear-gradient(90deg, transparent 79px, #abced4 79px, #abced4 81px, transparent 81px), linear-gradient(#F3F3F3 .1em, transparent .1em);
+    background-size: 100% 1.3em;
+    line-height: 1.3em;
+    background-position: 0px -3px;
+}
+h1 {
+    font-size: 1em;
+    text-align: center;
+    margin: 23px 0 32px;
+    font-weight: 400;
+}
+p {
+    margin: 1.3em 0px;
+}
+b {
+    font-weight: 500;
+}
+img {
+    max-width: 100%;
+}
+.dragover:before {
+    content: "";
+    position: fixed;
+    z-index: 1;
+    top: 0;
+    left: 0;
+    bottom: 0;
+    right: 0;
+    background: rgba(0,0,0,0.4);
+    pointer-events: none;
+}
+
+.dragover:after {
+    pointer-events: none;
+    content: "Drop files here";
+    font: 200 30px "American Typewriter", sans;
+    position: fixed;
+    z-index: 1;
+    top: 50%;
+    left: 50%;
+    color: #FFF;
+    transform: translate(-50%, -50%);
+    border: 2px dashed rgba(255,255,255,0.8);
+    border-radius: 10px;
+    padding: 30px 50px;
+}
+</style><style type="text/css"></style></head><body contenteditable="">
+  <script>
+document.body.onload = function() {
+document.body.addEventListener('blur', function (event) {
+   var h1 = document.getElementsByTagName('h1');
+   h1.length && (document.title = "Notepadlet - " + h1[0].innerText);
+   setTimeout(function() {
+      window.location = 'data:text/html;base64,' + btoa(document.documentElement.outerHTML);
+   }, 200);
+});
+  
+var p = document.getElementsByTagName("p")[0],
+    s = window.getSelection(),
+    r = document.createRange()
+    c = p.innerHTML;
+p.innerHTML = '\\u00a0';
+r.selectNodeContents(p);
+s.removeAllRanges();
+s.addRange(r);
+document.execCommand('delete', false, null);
+p.innerHTML = c;
+
+document.documentElement.addEventListener("dragover", function() {
+   document.documentElement.classList = "dragover";
+});
+document.documentElement.addEventListener("dragleave", function() {
+   document.documentElement.classList = "";
+});
+document.documentElement.addEventListener("drop", function(e) {
+  e.preventDefault();
+  document.documentElement.classList = "";
+  var files = e.target.files || e.dataTransfer.files;
+  for (var i = 0, f; f = files[i]; i++) {
+    AddFile(f);
+  }
+});
+var reader  = new FileReader();
+reader.addEventListener("load", function () {
+  var newImage = new Image();
+  newImage.src = reader.result;
+  document.body.appendChild(newImage);
+}, false);
+function AddFile(file) {
+  reader.readAsDataURL(file);
+}
+}
+</script><h1>Installing Notepadlet</h1>
+  <p>You can install Notepadlet by dragging the following link to your bookmarks toolbar:</p><p style="
+    text-align: center;
+"><a href="data:text/html;base64,PGh0bWwgb25jbGljaz0iIiBjbGFzcz0iIj48aGVhZD48dGl0bGU+Tm90ZXBhZGxldCAtIFVudGl0bGVkPC90aXRsZT4KPG1ldGEgbmFtZT0idmlld3BvcnQiIGNvbnRlbnQ9IndpZHRoPWRldmljZS13aWR0aCwgaW5pdGlhbC1zY2FsZT0xLjAiPgoKCgo8c3R5bGUgdHlwZT0idGV4dC9jc3MiPgpodG1sIHsKICAgIHBhZGRpbmc6IDBweCA1cHggNDBweDsKICAgIGJhY2tncm91bmQtY29sb3I6ICNFRUU7CiAgICBiYWNrZ3JvdW5kLWltYWdlOiByZXBlYXRpbmctbGluZWFyLWdyYWRpZW50KDQ1ZGVnLCB0cmFuc3BhcmVudCA1cHgsIGhzbGEoMTk3LCA2MiUsIDExJSwgMC41KSA1cHgsIGhzbGEoMTk3LCA2MiUsIDExJSwgMC41KSAxMHB4LCBoc2xhKDUsIDUzJSwgNjMlLCAwKSAxMHB4LCBoc2xhKDUsIDUzJSwgNjMlLCAwKSAzNXB4LCBoc2xhKDUsIDUzJSwgNjMlLCAwLjUpIDM1cHgsIGhzbGEoNSwgNTMlLCA2MyUsIDAuNSkgNDBweCwgaHNsYSgxOTcsIDYyJSwgMTElLCAwLjUpIDQwcHgsIGhzbGEoMTk3LCA2MiUsIDExJSwgMC41KSA1MHB4LCBoc2xhKDE5NywgNjIlLCAxMSUsIDApIDUwcHgsIGhzbGEoMTk3LCA2MiUsIDExJSwgMCkgNjBweCwgaHNsYSg1LCA1MyUsIDYzJSwgMC41KSA2MHB4LCBoc2xhKDUsIDUzJSwgNjMlLCAwLjUpIDcwcHgsIGhzbGEoMzUsIDkxJSwgNjUlLCAwLjUpIDcwcHgsIGhzbGEoMzUsIDkxJSwgNjUlLCAwLjUpIDgwcHgsIGhzbGEoMzUsIDkxJSwgNjUlLCAwKSA4MHB4LCBoc2xhKDM1LCA5MSUsIDY1JSwgMCkgOTBweCwgaHNsYSg1LCA1MyUsIDYzJSwgMC41KSA5MHB4LCBoc2xhKDUsIDUzJSwgNjMlLCAwLjUpIDExMHB4LCBoc2xhKDUsIDUzJSwgNjMlLCAwKSAxMTBweCwgaHNsYSg1LCA1MyUsIDYzJSwgMCkgMTIwcHgsIGhzbGEoMTk3LCA2MiUsIDExJSwgMC41KSAxMjBweCwgaHNsYSgxOTcsIDYyJSwgMTElLCAwLjUpIDE0MHB4ICksIHJlcGVhdGluZy1saW5lYXItZ3JhZGllbnQoMTM1ZGVnLCB0cmFuc3BhcmVudCA1cHgsIGhzbGEoMTk3LCA2MiUsIDExJSwgMC41KSA1cHgsIGhzbGEoMTk3LCA2MiUsIDExJSwgMC41KSAxMHB4LCBoc2xhKDUsIDUzJSwgNjMlLCAwKSAxMHB4LCBoc2xhKDUsIDUzJSwgNjMlLCAwKSAzNXB4LCBoc2xhKDUsIDUzJSwgNjMlLCAwLjUpIDM1cHgsIGhzbGEoNSwgNTMlLCA2MyUsIDAuNSkgNDBweCwgaHNsYSgxOTcsIDYyJSwgMTElLCAwLjUpIDQwcHgsIGhzbGEoMTk3LCA2MiUsIDExJSwgMC41KSA1MHB4LCBoc2xhKDE5NywgNjIlLCAxMSUsIDApIDUwcHgsIGhzbGEoMTk3LCA2MiUsIDExJSwgMCkgNjBweCwgaHNsYSg1LCA1MyUsIDYzJSwgMC41KSA2MHB4LCBoc2xhKDUsIDUzJSwgNjMlLCAwLjUpIDcwcHgsIGhzbGEoMzUsIDkxJSwgNjUlLCAwLjUpIDcwcHgsIGhzbGEoMzUsIDkxJSwgNjUlLCAwLjUpIDgwcHgsIGhzbGEoMzUsIDkxJSwgNjUlLCAwKSA4MHB4LCBoc2xhKDM1LCA5MSUsIDY1JSwgMCkgOTBweCwgaHNsYSg1LCA1MyUsIDYzJSwgMC41KSA5MHB4LCBoc2xhKDUsIDUzJSwgNjMlLCAwLjUpIDExMHB4LCBoc2xhKDUsIDUzJSwgNjMlLCAwKSAxMTBweCwgaHNsYSg1LCA1MyUsIDYzJSwgMCkgMTQwcHgsIGhzbGEoMTk3LCA2MiUsIDExJSwgMC41KSAxNDBweCwgaHNsYSgxOTcsIDYyJSwgMTElLCAwLjUpIDE2MHB4ICk7Cn0KYm9keSB7CiAgICBtYXgtd2lkdGg6IDgwMHB4OwogICAgbWFyZ2luOiAxMHB4IGF1dG87CiAgICBiYWNrZ3JvdW5kOiAjRkFGQUZBOwogICAgcGFkZGluZzogMTBweCAyNnB4IDEwcHggOTdweDsKICAgIGJveC1zaXppbmc6IGJvcmRlci1ib3g7CiAgICBtaW4taGVpZ2h0OiAxMTAlOwogICAgZm9udDogMTAwIDI0cHggIkFtZXJpY2FuIHR5cGV3cml0ZXIiLCBzZXJpZjsKICAgIGJveC1zaGFkb3c6IDBweCA0cHggMTVweCAwcHggcmdiYSgwLDAsMCwwLjE1KSwgMHB4IDBweCAxcHggMXB4IHJnYmEoMCwwLDAsMC4xKTsKICAgIGJhY2tncm91bmQtaW1hZ2U6IGxpbmVhci1ncmFkaWVudCg5MGRlZywgdHJhbnNwYXJlbnQgNzlweCwgI2FiY2VkNCA3OXB4LCAjYWJjZWQ0IDgxcHgsIHRyYW5zcGFyZW50IDgxcHgpLCBsaW5lYXItZ3JhZGllbnQoI0YzRjNGMyAuMWVtLCB0cmFuc3BhcmVudCAuMWVtKTsKICAgIGJhY2tncm91bmQtc2l6ZTogMTAwJSAxLjNlbTsKICAgIGxpbmUtaGVpZ2h0OiAxLjNlbTsKICAgIGJhY2tncm91bmQtcG9zaXRpb246IDBweCAtM3B4Owp9CmgxIHsKICAgIGZvbnQtc2l6ZTogMWVtOwogICAgdGV4dC1hbGlnbjogY2VudGVyOwogICAgbWFyZ2luOiAyM3B4IDAgMzJweDsKICAgIGZvbnQtd2VpZ2h0OiA0MDA7Cn0KcCB7CiAgICBtYXJnaW46IDEuM2VtIDBweDsKfQpiIHsKICAgIGZvbnQtd2VpZ2h0OiA1MDA7Cn0KaW1nIHsKICAgIG1heC13aWR0aDogMTAwJTsKfQouZHJhZ292ZXI6YmVmb3JlIHsKICAgIGNvbnRlbnQ6ICIiOwogICAgcG9zaXRpb246IGZpeGVkOwogICAgei1pbmRleDogMTsKICAgIHRvcDogMDsKICAgIGxlZnQ6IDA7CiAgICBib3R0b206IDA7CiAgICByaWdodDogMDsKICAgIGJhY2tncm91bmQ6IHJnYmEoMCwwLDAsMC40KTsKICAgIHBvaW50ZXItZXZlbnRzOiBub25lOwp9CgouZHJhZ292ZXI6YWZ0ZXIgewogICAgcG9pbnRlci1ldmVudHM6IG5vbmU7CiAgICBjb250ZW50OiAiRHJvcCBmaWxlcyBoZXJlIjsKICAgIGZvbnQ6IDIwMCAzMHB4ICJBbWVyaWNhbiBUeXBld3JpdGVyIiwgc2FuczsKICAgIHBvc2l0aW9uOiBmaXhlZDsKICAgIHotaW5kZXg6IDE7CiAgICB0b3A6IDUwJTsKICAgIGxlZnQ6IDUwJTsKICAgIGNvbG9yOiAjRkZGOwogICAgdHJhbnNmb3JtOiB0cmFuc2xhdGUoLTUwJSwgLTUwJSk7CiAgICBib3JkZXI6IDJweCBkYXNoZWQgcmdiYSgyNTUsMjU1LDI1NSwwLjgpOwogICAgYm9yZGVyLXJhZGl1czogMTBweDsKICAgIHBhZGRpbmc6IDMwcHggNTBweDsKfQo8L3N0eWxlPjxzdHlsZSB0eXBlPSJ0ZXh0L2NzcyI+PC9zdHlsZT48L2hlYWQ+PGJvZHkgY29udGVudGVkaXRhYmxlPSIiPgogIDxzY3JpcHQ+CmRvY3VtZW50LmJvZHkub25sb2FkID0gZnVuY3Rpb24oKSB7CmRvY3VtZW50LmJvZHkuYWRkRXZlbnRMaXN0ZW5lcignYmx1cicsIGZ1bmN0aW9uIChldmVudCkgewogICB2YXIgaDEgPSBkb2N1bWVudC5nZXRFbGVtZW50c0J5VGFnTmFtZSgnaDEnKTsKICAgaDEubGVuZ3RoICYmIChkb2N1bWVudC50aXRsZSA9ICJOb3RlcGFkbGV0IC0gIiArIGgxWzBdLmlubmVyVGV4dCk7CiAgIHdpbmRvdy5sb2NhdGlvbiA9ICdkYXRhOnRleHQvaHRtbDtiYXNlNjQsJyArIGJ0b2EoZG9jdW1lbnQuZG9jdW1lbnRFbGVtZW50Lm91dGVySFRNTCk7Cn0pOwogIAp2YXIgcCA9IGRvY3VtZW50LmdldEVsZW1lbnRzQnlUYWdOYW1lKCJwIilbMF0sCiAgICBzID0gd2luZG93LmdldFNlbGVjdGlvbigpLAogICAgciA9IGRvY3VtZW50LmNyZWF0ZVJhbmdlKCkKICAgIGMgPSBwLmlubmVySFRNTDsKcC5pbm5lckhUTUwgPSAnXHUwMGEwJzsKci5zZWxlY3ROb2RlQ29udGVudHMocCk7CnMucmVtb3ZlQWxsUmFuZ2VzKCk7CnMuYWRkUmFuZ2Uocik7CmRvY3VtZW50LmV4ZWNDb21tYW5kKCdkZWxldGUnLCBmYWxzZSwgbnVsbCk7CnAuaW5uZXJIVE1MID0gYzsKCmRvY3VtZW50LmRvY3VtZW50RWxlbWVudC5hZGRFdmVudExpc3RlbmVyKCJkcmFnb3ZlciIsIGZ1bmN0aW9uKCkgewogICBkb2N1bWVudC5kb2N1bWVudEVsZW1lbnQuY2xhc3NMaXN0ID0gImRyYWdvdmVyIjsKfSk7CmRvY3VtZW50LmRvY3VtZW50RWxlbWVudC5hZGRFdmVudExpc3RlbmVyKCJkcmFnbGVhdmUiLCBmdW5jdGlvbigpIHsKICAgZG9jdW1lbnQuZG9jdW1lbnRFbGVtZW50LmNsYXNzTGlzdCA9ICIiOwp9KTsKZG9jdW1lbnQuZG9jdW1lbnRFbGVtZW50LmFkZEV2ZW50TGlzdGVuZXIoImRyb3AiLCBmdW5jdGlvbihlKSB7CiAgZS5wcmV2ZW50RGVmYXVsdCgpOwogIGRvY3VtZW50LmRvY3VtZW50RWxlbWVudC5jbGFzc0xpc3QgPSAiIjsKICB2YXIgZmlsZXMgPSBlLnRhcmdldC5maWxlcyB8fCBlLmRhdGFUcmFuc2Zlci5maWxlczsKICBmb3IgKHZhciBpID0gMCwgZjsgZiA9IGZpbGVzW2ldOyBpKyspIHsKICAgIEFkZEZpbGUoZik7CiAgfQp9KTsKdmFyIHJlYWRlciAgPSBuZXcgRmlsZVJlYWRlcigpOwpyZWFkZXIuYWRkRXZlbnRMaXN0ZW5lcigibG9hZCIsIGZ1bmN0aW9uICgpIHsKICB2YXIgbmV3SW1hZ2UgPSBuZXcgSW1hZ2UoKTsKICBuZXdJbWFnZS5zcmMgPSByZWFkZXIucmVzdWx0OwogIGRvY3VtZW50LmJvZHkuYXBwZW5kQ2hpbGQobmV3SW1hZ2UpOwp9LCBmYWxzZSk7CmZ1bmN0aW9uIEFkZEZpbGUoZmlsZSkgewogIHJlYWRlci5yZWFkQXNEYXRhVVJMKGZpbGUpOwp9Cn0KPC9zY3JpcHQ+PGgxPlVudGl0bGVkPC9oMT4KICA8cD48YnI+PC9wPjwvYm9keT48L2h0bWw+" contenteditable="false" target="_blank">Notepadlet - Untitled</a></p><p>This creates a bookmarklet with an empty Notepadlet that you can use any time, anywhere. Even on offline.</p><p>Note that this page is a fully-functional Notepadlet, so you can just start editing this site or bookmark it directly.</p><p>Notepadlet saves itself automatically every time you click outside the paper.</p></body></html>
