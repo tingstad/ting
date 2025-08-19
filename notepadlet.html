@@ -90,16 +90,35 @@ img {
     padding: 30px 50px;
 }
 </style><style type="text/css"></style></head><body contenteditable="">
-  <script>
-document.body.onload = function() {
-document.body.addEventListener('blur', function (event) {
-   var h1 = document.getElementsByTagName('h1');
-   h1.length && (document.title = "Notepadlet - " + h1[0].innerText);
-   setTimeout(function() {
-      window.location = 'data:text/html;base64,' + btoa(document.documentElement.outerHTML);
-   }, 200);
-});
-  
+  <script>document.body.onload = function() {
+const update = function() {
+  var h1 = document.getElementsByTagName('h1');
+  if (h1.length) {
+    let title = h1[0].innerText;
+    const link = document.getElementById('link');
+    if (link) title = title.substring(0, title.length - link.innerText.length);
+    const a = link.getElementsByTagName('a');
+    if (a.length) {
+      a[0].innerText = title;
+      a[0].href = "";
+      a[0].href = 'data:text/html;base64,' + btoa(document.documentElement.outerHTML);
+    }
+    document.title = title;
+  }
+};
+function debounce(fn, delay){
+  let timer;
+  return function() {
+    clearTimeout(timer);
+    timer = setTimeout(fn, delay);
+  };
+}
+const listener = debounce(update, 500);
+document.body.addEventListener('blur', listener);
+document.body.addEventListener('keyup', listener);
+document.body.addEventListener('mouseup', listener);
+listener();
+
 var p = document.getElementsByTagName("p")[0],
     s = window.getSelection(),
     r = document.createRange()
@@ -135,7 +154,8 @@ function AddFile(file) {
   reader.readAsDataURL(file);
 }
 }
-</script><h1>Installing Notepadlet</h1>
-  <p>You can install Notepadlet by dragging the following link to your bookmarks toolbar:</p><p style="
-    text-align: center;
-"><a href="data:text/html;base64,PGh0bWwgb25jbGljaz0iIiBjbGFzcz0iIj48aGVhZD48dGl0bGU+Tm90ZXBhZGxldCAtIFVudGl0bGVkPC90aXRsZT4KPG1ldGEgbmFtZT0idmlld3BvcnQiIGNvbnRlbnQ9IndpZHRoPWRldmljZS13aWR0aCwgaW5pdGlhbC1zY2FsZT0xLjAiPgoKCgo8c3R5bGUgdHlwZT0idGV4dC9jc3MiPgpodG1sIHsKICAgIHBhZGRpbmc6IDBweCA1cHggNDBweDsKICAgIGJhY2tncm91bmQtY29sb3I6ICNFRUU7CiAgICBiYWNrZ3JvdW5kLWltYWdlOiByZXBlYXRpbmctbGluZWFyLWdyYWRpZW50KDQ1ZGVnLCB0cmFuc3BhcmVudCA1cHgsIGhzbGEoMTk3LCA2MiUsIDExJSwgMC41KSA1cHgsIGhzbGEoMTk3LCA2MiUsIDExJSwgMC41KSAxMHB4LCBoc2xhKDUsIDUzJSwgNjMlLCAwKSAxMHB4LCBoc2xhKDUsIDUzJSwgNjMlLCAwKSAzNXB4LCBoc2xhKDUsIDUzJSwgNjMlLCAwLjUpIDM1cHgsIGhzbGEoNSwgNTMlLCA2MyUsIDAuNSkgNDBweCwgaHNsYSgxOTcsIDYyJSwgMTElLCAwLjUpIDQwcHgsIGhzbGEoMTk3LCA2MiUsIDExJSwgMC41KSA1MHB4LCBoc2xhKDE5NywgNjIlLCAxMSUsIDApIDUwcHgsIGhzbGEoMTk3LCA2MiUsIDExJSwgMCkgNjBweCwgaHNsYSg1LCA1MyUsIDYzJSwgMC41KSA2MHB4LCBoc2xhKDUsIDUzJSwgNjMlLCAwLjUpIDcwcHgsIGhzbGEoMzUsIDkxJSwgNjUlLCAwLjUpIDcwcHgsIGhzbGEoMzUsIDkxJSwgNjUlLCAwLjUpIDgwcHgsIGhzbGEoMzUsIDkxJSwgNjUlLCAwKSA4MHB4LCBoc2xhKDM1LCA5MSUsIDY1JSwgMCkgOTBweCwgaHNsYSg1LCA1MyUsIDYzJSwgMC41KSA5MHB4LCBoc2xhKDUsIDUzJSwgNjMlLCAwLjUpIDExMHB4LCBoc2xhKDUsIDUzJSwgNjMlLCAwKSAxMTBweCwgaHNsYSg1LCA1MyUsIDYzJSwgMCkgMTIwcHgsIGhzbGEoMTk3LCA2MiUsIDExJSwgMC41KSAxMjBweCwgaHNsYSgxOTcsIDYyJSwgMTElLCAwLjUpIDE0MHB4ICksIHJlcGVhdGluZy1saW5lYXItZ3JhZGllbnQoMTM1ZGVnLCB0cmFuc3BhcmVudCA1cHgsIGhzbGEoMTk3LCA2MiUsIDExJSwgMC41KSA1cHgsIGhzbGEoMTk3LCA2MiUsIDExJSwgMC41KSAxMHB4LCBoc2xhKDUsIDUzJSwgNjMlLCAwKSAxMHB4LCBoc2xhKDUsIDUzJSwgNjMlLCAwKSAzNXB4LCBoc2xhKDUsIDUzJSwgNjMlLCAwLjUpIDM1cHgsIGhzbGEoNSwgNTMlLCA2MyUsIDAuNSkgNDBweCwgaHNsYSgxOTcsIDYyJSwgMTElLCAwLjUpIDQwcHgsIGhzbGEoMTk3LCA2MiUsIDExJSwgMC41KSA1MHB4LCBoc2xhKDE5NywgNjIlLCAxMSUsIDApIDUwcHgsIGhzbGEoMTk3LCA2MiUsIDExJSwgMCkgNjBweCwgaHNsYSg1LCA1MyUsIDYzJSwgMC41KSA2MHB4LCBoc2xhKDUsIDUzJSwgNjMlLCAwLjUpIDcwcHgsIGhzbGEoMzUsIDkxJSwgNjUlLCAwLjUpIDcwcHgsIGhzbGEoMzUsIDkxJSwgNjUlLCAwLjUpIDgwcHgsIGhzbGEoMzUsIDkxJSwgNjUlLCAwKSA4MHB4LCBoc2xhKDM1LCA5MSUsIDY1JSwgMCkgOTBweCwgaHNsYSg1LCA1MyUsIDYzJSwgMC41KSA5MHB4LCBoc2xhKDUsIDUzJSwgNjMlLCAwLjUpIDExMHB4LCBoc2xhKDUsIDUzJSwgNjMlLCAwKSAxMTBweCwgaHNsYSg1LCA1MyUsIDYzJSwgMCkgMTQwcHgsIGhzbGEoMTk3LCA2MiUsIDExJSwgMC41KSAxNDBweCwgaHNsYSgxOTcsIDYyJSwgMTElLCAwLjUpIDE2MHB4ICk7Cn0KYm9keSB7CiAgICBtYXgtd2lkdGg6IDgwMHB4OwogICAgbWFyZ2luOiAxMHB4IGF1dG87CiAgICBiYWNrZ3JvdW5kOiAjRkFGQUZBOwogICAgcGFkZGluZzogMTBweCAyNnB4IDEwcHggOTdweDsKICAgIGJveC1zaXppbmc6IGJvcmRlci1ib3g7CiAgICBtaW4taGVpZ2h0OiAxMTAlOwogICAgZm9udDogMTAwIDI0cHggIkFtZXJpY2FuIHR5cGV3cml0ZXIiLCBzZXJpZjsKICAgIGJveC1zaGFkb3c6IDBweCA0cHggMTVweCAwcHggcmdiYSgwLDAsMCwwLjE1KSwgMHB4IDBweCAxcHggMXB4IHJnYmEoMCwwLDAsMC4xKTsKICAgIGJhY2tncm91bmQtaW1hZ2U6IGxpbmVhci1ncmFkaWVudCg5MGRlZywgdHJhbnNwYXJlbnQgNzlweCwgI2FiY2VkNCA3OXB4LCAjYWJjZWQ0IDgxcHgsIHRyYW5zcGFyZW50IDgxcHgpLCBsaW5lYXItZ3JhZGllbnQoI0YzRjNGMyAuMWVtLCB0cmFuc3BhcmVudCAuMWVtKTsKICAgIGJhY2tncm91bmQtc2l6ZTogMTAwJSAxLjNlbTsKICAgIGxpbmUtaGVpZ2h0OiAxLjNlbTsKICAgIGJhY2tncm91bmQtcG9zaXRpb246IDBweCAtM3B4Owp9CmgxIHsKICAgIGZvbnQtc2l6ZTogMWVtOwogICAgdGV4dC1hbGlnbjogY2VudGVyOwogICAgbWFyZ2luOiAyM3B4IDAgMzJweDsKICAgIGZvbnQtd2VpZ2h0OiA0MDA7Cn0KcCB7CiAgICBtYXJnaW46IDEuM2VtIDBweDsKfQpiIHsKICAgIGZvbnQtd2VpZ2h0OiA1MDA7Cn0KaW1nIHsKICAgIG1heC13aWR0aDogMTAwJTsKfQouZHJhZ292ZXI6YmVmb3JlIHsKICAgIGNvbnRlbnQ6ICIiOwogICAgcG9zaXRpb246IGZpeGVkOwogICAgei1pbmRleDogMTsKICAgIHRvcDogMDsKICAgIGxlZnQ6IDA7CiAgICBib3R0b206IDA7CiAgICByaWdodDogMDsKICAgIGJhY2tncm91bmQ6IHJnYmEoMCwwLDAsMC40KTsKICAgIHBvaW50ZXItZXZlbnRzOiBub25lOwp9CgouZHJhZ292ZXI6YWZ0ZXIgewogICAgcG9pbnRlci1ldmVudHM6IG5vbmU7CiAgICBjb250ZW50OiAiRHJvcCBmaWxlcyBoZXJlIjsKICAgIGZvbnQ6IDIwMCAzMHB4ICJBbWVyaWNhbiBUeXBld3JpdGVyIiwgc2FuczsKICAgIHBvc2l0aW9uOiBmaXhlZDsKICAgIHotaW5kZXg6IDE7CiAgICB0b3A6IDUwJTsKICAgIGxlZnQ6IDUwJTsKICAgIGNvbG9yOiAjRkZGOwogICAgdHJhbnNmb3JtOiB0cmFuc2xhdGUoLTUwJSwgLTUwJSk7CiAgICBib3JkZXI6IDJweCBkYXNoZWQgcmdiYSgyNTUsMjU1LDI1NSwwLjgpOwogICAgYm9yZGVyLXJhZGl1czogMTBweDsKICAgIHBhZGRpbmc6IDMwcHggNTBweDsKfQo8L3N0eWxlPjxzdHlsZSB0eXBlPSJ0ZXh0L2NzcyI+PC9zdHlsZT48L2hlYWQ+PGJvZHkgY29udGVudGVkaXRhYmxlPSIiPgogIDxzY3JpcHQ+CmRvY3VtZW50LmJvZHkub25sb2FkID0gZnVuY3Rpb24oKSB7CmRvY3VtZW50LmJvZHkuYWRkRXZlbnRMaXN0ZW5lcignYmx1cicsIGZ1bmN0aW9uIChldmVudCkgewogICB2YXIgaDEgPSBkb2N1bWVudC5nZXRFbGVtZW50c0J5VGFnTmFtZSgnaDEnKTsKICAgaDEubGVuZ3RoICYmIChkb2N1bWVudC50aXRsZSA9ICJOb3RlcGFkbGV0IC0gIiArIGgxWzBdLmlubmVyVGV4dCk7CiAgIHdpbmRvdy5sb2NhdGlvbiA9ICdkYXRhOnRleHQvaHRtbDtiYXNlNjQsJyArIGJ0b2EoZG9jdW1lbnQuZG9jdW1lbnRFbGVtZW50Lm91dGVySFRNTCk7Cn0pOwogIAp2YXIgcCA9IGRvY3VtZW50LmdldEVsZW1lbnRzQnlUYWdOYW1lKCJwIilbMF0sCiAgICBzID0gd2luZG93LmdldFNlbGVjdGlvbigpLAogICAgciA9IGRvY3VtZW50LmNyZWF0ZVJhbmdlKCkKICAgIGMgPSBwLmlubmVySFRNTDsKcC5pbm5lckhUTUwgPSAnXHUwMGEwJzsKci5zZWxlY3ROb2RlQ29udGVudHMocCk7CnMucmVtb3ZlQWxsUmFuZ2VzKCk7CnMuYWRkUmFuZ2Uocik7CmRvY3VtZW50LmV4ZWNDb21tYW5kKCdkZWxldGUnLCBmYWxzZSwgbnVsbCk7CnAuaW5uZXJIVE1MID0gYzsKCmRvY3VtZW50LmRvY3VtZW50RWxlbWVudC5hZGRFdmVudExpc3RlbmVyKCJkcmFnb3ZlciIsIGZ1bmN0aW9uKCkgewogICBkb2N1bWVudC5kb2N1bWVudEVsZW1lbnQuY2xhc3NMaXN0ID0gImRyYWdvdmVyIjsKfSk7CmRvY3VtZW50LmRvY3VtZW50RWxlbWVudC5hZGRFdmVudExpc3RlbmVyKCJkcmFnbGVhdmUiLCBmdW5jdGlvbigpIHsKICAgZG9jdW1lbnQuZG9jdW1lbnRFbGVtZW50LmNsYXNzTGlzdCA9ICIiOwp9KTsKZG9jdW1lbnQuZG9jdW1lbnRFbGVtZW50LmFkZEV2ZW50TGlzdGVuZXIoImRyb3AiLCBmdW5jdGlvbihlKSB7CiAgZS5wcmV2ZW50RGVmYXVsdCgpOwogIGRvY3VtZW50LmRvY3VtZW50RWxlbWVudC5jbGFzc0xpc3QgPSAiIjsKICB2YXIgZmlsZXMgPSBlLnRhcmdldC5maWxlcyB8fCBlLmRhdGFUcmFuc2Zlci5maWxlczsKICBmb3IgKHZhciBpID0gMCwgZjsgZiA9IGZpbGVzW2ldOyBpKyspIHsKICAgIEFkZEZpbGUoZik7CiAgfQp9KTsKdmFyIHJlYWRlciAgPSBuZXcgRmlsZVJlYWRlcigpOwpyZWFkZXIuYWRkRXZlbnRMaXN0ZW5lcigibG9hZCIsIGZ1bmN0aW9uICgpIHsKICB2YXIgbmV3SW1hZ2UgPSBuZXcgSW1hZ2UoKTsKICBuZXdJbWFnZS5zcmMgPSByZWFkZXIucmVzdWx0OwogIGRvY3VtZW50LmJvZHkuYXBwZW5kQ2hpbGQobmV3SW1hZ2UpOwp9LCBmYWxzZSk7CmZ1bmN0aW9uIEFkZEZpbGUoZmlsZSkgewogIHJlYWRlci5yZWFkQXNEYXRhVVJMKGZpbGUpOwp9Cn0KPC9zY3JpcHQ+PGgxPlVudGl0bGVkPC9oMT4KICA8cD48YnI+PC9wPjwvYm9keT48L2h0bWw+" contenteditable="false" target="_blank">Notepadlet - Untitled</a></p><p>This creates a bookmarklet with an empty Notepadlet that you can use any time, anywhere. Even on offline.</p><p>Note that this page is a fully-functional Notepadlet, so you can just start editing this site or bookmark it directly.</p><p>Notepadlet saves itself automatically every time you click outside the paper.</p></body></html>
+</script><h1>Untitled Notepadlet<span id="link" contenteditable="false"> (<a href=""></a>)</span></h1>
+<p>Drag the link to your bookmarks toolbar, or right-click it and Save/Copy.</p>
+<p>This creates a bookmarklet that you can use any time, anywhere. Even on offline.</p>
+<p>Note that this page is a fully-functional Notepadlet, so you can just start editing this site directly.</p>
+<p>The top link updates itself automatically.</p></body></html>
