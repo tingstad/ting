@@ -29,9 +29,17 @@
         border-radius: 4px;
         font-size: 14px;
     }
-    #timeline { display: flex; }
+    #timeline { display: flex; align-items: center; }
     #slider { flex: 1; width: 100%; }
     #info { padding: 4px 5px 6px 5px; }
+    #wheel { padding: 4px; text-decoration: none; }
+    #settings {
+        position: fixed;
+        inset: 0;
+        z-index: 9999;
+        background: #f9f9f9;
+        padding: 20px;
+    }
   </style>
 </head>
 <body>
@@ -41,7 +49,18 @@
       Start <input id="slider" type="range" disabled
                 min="0" max="2000" step="1" value="0"> Mål
     </div>
-    <div id="time">00:00:00</div>
+    <div>
+      <span id="time">00:00:00</span>
+      <a id="wheel" title="Innstillinger" href="#settings">⚙️ </a>
+    </div>
+  </div>
+
+  <div id="settings" style="display:none">
+    <header>
+      <h2>Innstillinger</h2>
+    </header>
+    <div id="list"></div>
+    <div><button id="close">Lagre</button></div>
   </div>
 
 <script>
@@ -67,6 +86,35 @@ let filenames = [
     'Bj2024.gpx',
 ];
 
+let showrun = filenames.map(() => true);
+
+document.getElementById('wheel').onclick = (e) => {
+    let div = document.createElement('div');
+    div.setAttribute('id', 'list');
+    filenames.forEach((name, i) => {
+        let label = document.createElement('label');
+        let input = document.createElement('input');
+        input.setAttribute('type', 'checkbox');
+        input.setAttribute('id', `show${i}`);
+        input.checked = showrun[i];
+        label.appendChild(input);
+        label.appendChild(document.createTextNode(name));
+        div.appendChild(label);
+        div.appendChild(document.createElement('br'));
+    });
+    document.getElementById('list').replaceWith(div);
+    document.getElementById('settings').style.display = 'block';
+    event.preventDefault();
+};
+document.getElementById('close').onclick = () => {
+    document.querySelectorAll('input[type="checkbox"]').forEach((cb, i) => {
+        showrun[i] = cb.checked;
+    });
+    if (!showrun.reduce((acc, cur) => acc || cur)) return;
+    document.getElementById('settings').style.display = 'none';
+    updateMap();
+};
+
 let filesPromise = Promise.all(filenames.map(name =>
     fetch(name).then(resp => resp.text())));
 
@@ -87,10 +135,6 @@ let routePromises = files.map((file) =>
             .on('loaded', function(e){ resolve(e.target); })));
 
 let routes = await Promise.all(routePromises);
-routes.forEach((route, i) => {
-    route.addTo(map);
-    if (i == 0) map.fitBounds(route.getBounds());
-});
 
 let maxTime = Math.max(...routes.map(r => r.get_total_time()));
 
@@ -109,8 +153,27 @@ let markers = filenames.map((filename, idx) => {
         iconSize: [25,41],
         popupAnchor: [1,-34],
         className: 'marker'
-    }) }).addTo(map);
+    }) });
 });
+
+function updateMap() {
+    routes.forEach((route, i) => {
+        if (showrun[i] && !map.hasLayer(route))
+            route.addTo(map);
+        else if (!showrun[i] && map.hasLayer(route))
+            route.remove();
+        if (i == 0) map.fitBounds(route.getBounds());
+    });
+    markers.forEach((marker, i) => {
+        if (showrun[i] && !map.hasLayer(marker))
+            marker.addTo(map);
+        else if (!showrun[i] && map.hasLayer(marker))
+            marker.remove();
+    });
+}
+
+
+function setupSlider() {
 
 let slider = document.getElementById('slider');
 let max = slider.getAttribute('max');
@@ -138,12 +201,14 @@ slider.addEventListener('input', function(e) {
     document.getElementById("time").innerHTML = formatTime(time);
     for (let run in parsed) {
         let point = pos[run][this.value];
-        markers[run].setLatLng([point.lat, point.lon]);
+        if (showrun[run])
+            markers[run].setLatLng([point.lat, point.lon]);
     }
 });
 slider.disabled = false;
 slider.value = max / 4;
 slider.dispatchEvent(new Event('input', { bubbles: true, cancelable: true }));
+}
 
 function formatTime(millis) {
     let secs = parseInt(millis / 1000);
@@ -159,6 +224,9 @@ function formatTime(millis) {
 
     return hours + ":" + minutes + ":" + seconds;
 }
+
+updateMap();
+setupSlider();
 
 })();
 </script>
