@@ -29,9 +29,6 @@
         border-radius: 4px;
         font-size: 14px;
     }
-    #slider { display: block; width: 100%; }
-    #info { padding: 4px 5px 6px 5px; }
-    #wheel { padding: 4px; text-decoration: none; }
     #settings {
         position: fixed;
         inset: 0;
@@ -43,16 +40,18 @@
 </head>
 <body>
   <div id="map"></div>
-  <div id="info">
+  <div id="info" style="padding: 4px 5px 6px 5px;">
     <div>
       <input id="slider" type="range" disabled
+        style="display: block; width: 100%;"
         min="0" max="2000" step="1" value="0">
     </div>
     <div
       style="display:flex; justify-content:space-between; align-items:center;">
         Start
         <span id="time">00:00:00</span>
-        <a id="wheel" title="Innstillinger" href="#settings">⚙️ </a>
+        <a id="wheel" style="padding: 4px; text-decoration: none;"
+          title="Innstillinger" href="#settings">⚙️ </a>
         Mål
     </div>
   </div>
