@@ -95,27 +95,76 @@ let filenames = [
 
 let showrun = filenames.map((_, i) => i>2);
 
+let runs = filenames.map((name, i) => {
+    let parts = name.split('20');
+    return {
+        "name": parts[0],
+        "year": parts[1].split('.')[0],
+        "indx": i,
+    };
+});
+
 document.getElementById('wheel').onclick = (e) => {
+
     let div = document.createElement('div');
-    div.setAttribute('id', 'list');
-    filenames.forEach((name, i) => {
-        let label = document.createElement('label');
-        let input = document.createElement('input');
-        input.setAttribute('type', 'checkbox');
-        input.setAttribute('id', `show${i}`);
-        input.checked = showrun[i];
-        label.appendChild(input);
-        label.appendChild(document.createTextNode(name));
-        div.appendChild(label);
-        div.appendChild(document.createElement('br'));
+
+    let table = document.createElement('table');
+    let row = document.createElement('tr');
+    row.appendChild(document.createElement('th'));
+    let names = ['Bj','Ma','Mo','Ri','Si'];
+    names.forEach((name) => {
+        let th = document.createElement('th');
+        th.appendChild(document.createTextNode(name));
+        row.appendChild(th);
     });
+    table.appendChild(row);
+
+    let runsByYear = {};
+    for (let idx in runs) {
+        let run = runs[idx];
+        let v = runsByYear[run.year] || {};
+        v[run.name] = run;
+        runsByYear[run.year] = v;
+    }
+    let years = Object.keys(runsByYear);
+    years.sort();
+    for (let idx in years) {
+        let y = years[idx];
+        row = document.createElement('tr');
+        let td = document.createElement('td');
+        td.appendChild(document.createTextNode(y));
+        row.appendChild(td);
+        names.forEach((name) => {
+            td = document.createElement('td');
+            if (runsByYear[y][name]) {
+                let input = document.createElement('input');
+                input.setAttribute('type', 'checkbox');
+                input.setAttribute('id', `show-${y}-${name}`);
+                input.checked = showrun[runsByYear[y][name].indx];
+                td.appendChild(input);
+            }
+            row.appendChild(td);
+        });
+        table.appendChild(row);
+    }
+
+    div.appendChild(table);
+
+    div.setAttribute('id', 'list');
     document.getElementById('list').replaceWith(div);
     document.getElementById('settings').style.display = 'block';
     event.preventDefault();
 };
 document.getElementById('close').onclick = () => {
     document.querySelectorAll('input[type="checkbox"]').forEach((cb, i) => {
-        showrun[i] = cb.checked;
+        let parts = cb.id.split('-');
+        let y = parts[1];
+        let name = parts[2];
+        for (let idx in runs) {
+            let run = runs[idx];
+            if (run.name == name && run.year == y)
+                showrun[run.indx] = cb.checked;
+        }
     });
     if (!showrun.reduce((acc, cur) => acc || cur)) return;
     document.getElementById('settings').style.display = 'none';
