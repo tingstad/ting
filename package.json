@@ -1,0 +1,22 @@
+{
+  "name": "zip-extractor",
+  "version": "1.0.0",
+  "description": "ZIP Extractor",
+  "bin": {
+    "zip-extractor": "zip-extractor.js"
+  },
+  "files": [
+    "zip-extractor.js",
+    "zip-extractor.html"
+  ],
+  "scripts": {
+    "test": "true"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/tingstad/ting.git"
+  },
+  "author": "Richard H. Tingstad",
+  "license": "GPL-3.0",
+  "homepage": "https://github.com/tingstad/ting"
+}

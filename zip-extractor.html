@@ -1,0 +1,415 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="author" content="Richard H. Tingstad">
+    <title>Zip Extractor</title>
+    <style>
+        #error { background-color: #FFCCCB; }
+        @keyframes spin { to { transform: rotate(360deg); } }
+    </style>
+</head>
+<body>
+
+<h1>Zip Extractor</h1>
+
+<div id="error"></div>
+
+<form id="form">
+    <input type="text" required name="url" id="url" size="70"
+        placeholder="URL to zip file"
+        value="" />
+    <input type="submit" id="submit" />
+</form>
+
+<div id="files" style=""></div>
+
+
+<script>
+
+const littleEndian = true;
+const gui = document.getElementById('files');
+
+function init() {
+    const url = queryParamUrl();
+    if (url) {
+        byId('url').value = url;
+    }
+
+    window.addEventListener("popstate", update);
+
+    byId('form').addEventListener('submit', (e) => {
+        e.preventDefault();
+        const urlValue = byId('url').value;
+        if (urlValue != queryParamUrl()) {
+            const fullUrl = new URL(location);
+            fullUrl.searchParams.set("url", urlValue);
+            history.pushState({}, "", fullUrl);
+        }
+        const error = byId('error');
+        error.innerHTML = '';
+        load(urlValue)
+            .catch((err) => {
+                error.innerHTML = err.message.replaceAll('\n', '<br>');
+            });
+    });
+
+    if (location.hostname === "localhost") {
+        const orig = window.fetch;
+        window.fetch = function(url, opts) {
+            const proxy =
+                `http://localhost:8080/proxy/${encodeURIComponent(url)}`;
+            return orig(proxy, opts);
+        };
+    }
+}
+
+function update() {
+    const url = queryParamUrl();
+    if (url) {
+        byId('url').value = url;
+    }
+    error.innerHTML = '';
+    gui.innerHTML = "";
+}
+
+function queryParamUrl() {
+    const urlParams = new URLSearchParams(location.search);
+    return urlParams.get('url');
+}
+
+async function load(url) {
+
+    const length = await getContentLength(url);
+    if (!length) {
+        throw new Error("No Content-Length found");
+    }
+
+    const endOfCentralDir = await getEndOfCentralDirectory(url, length);
+
+    const centralDirCount= endOfCentralDir.getUint16( 8, littleEndian);
+    const centralDirSize = endOfCentralDir.getUint32(12, littleEndian);
+    const centralDirOffs = endOfCentralDir.getUint32(16, littleEndian);
+
+    let resp = await fetch(url, { headers: {
+        "Range": `bytes=${centralDirOffs}-${centralDirOffs+centralDirSize}`
+    }});
+    if (!resp.ok) {
+        throw new Error("HTTP error: " + resp.status);
+    }
+    let buffer = await resp.arrayBuffer();
+    const centralDirHeaders = getCentralDirectoryHeaders(buffer, centralDirCount);
+
+    const table = el('table',
+        el('tr',
+            el('th', { "colspan": "6", "style": "text-align: left" },
+                el('a', { "href": url }, url),
+                    el('span', { "style": "font-weight: 400" },
+                        " (" + human(length) + ")")
+            )),
+        el('tr',
+            el('th', 'Filename'),
+            el('th', 'Method'),
+            el('th', 'Size'),
+            el('th', 'Length'),
+            el('th', 'Cmpr'),
+            el('th', 'GET'),
+        ));
+    centralDirHeaders.forEach((header, i) => {
+
+        const ratio = header.sizeUncompressed == 0 ? 0
+            : 100 - Math.round(
+                header.sizeCompressed * 100 / header.sizeUncompressed);
+        table.appendChild(
+            el('tr',
+                el('td', header.filename),
+                el('td', header.compression),
+                el('td', human(header.sizeCompressed)),
+                el('td', human(header.sizeUncompressed)),
+                el('td', `${ratio}%`),
+                el('td',
+                    el('a', 'get', { "href": "", "click": (e) => {
+                        e.preventDefault();
+                        const span = el('span', {
+                                "style": "display: inline-block;"
+                                       + "transform-origin: 50% 50%;"
+                                       + "animation: spin 2s linear infinite;"
+                                }, '⌛');
+                        e.target.replaceWith(span);
+                        const entry = centralDirHeaders
+                            .filter((it) => it.filename == header.filename)[0];
+                        getEntry(url, entry)
+                            .then((blob) => {
+                                span.replaceWith(
+                                    el('a', '💾', { "target": "_blank",
+                                        "href": URL.createObjectURL(blob) })
+                                );
+                            });
+                    }})
+                ),
+            )
+        );
+        gui.appendChild(table);
+    });
+}
+
+async function getEntry(url, entry) {
+   /*
+   4.3.7  Local file header:
+
+      local file header signature     4 bytes  (0x04034b50)
+      version needed to extract       2 bytes
+      general purpose bit flag        2 bytes
+      compression method              2 bytes
+      last mod file time              2 bytes
+      last mod file date              2 bytes
+      crc-32                          4 bytes
+      compressed size                 4 bytes
+      uncompressed size               4 bytes
+      file name length                2 bytes
+      extra field length              2 bytes
+
+      file name (variable size)
+      extra field (variable size)
+    */
+
+    const localHeaderLength = 30
+        + entry.filenameLength
+        + entry.extraFieldLength;
+
+    const start = entry.offsetLocalHeader;
+    const end = start + localHeaderLength + entry.sizeCompressed - 1;
+
+    let resp = await fetch(url, {
+        headers: { "Range": `bytes=${start}-${end}` }
+    });
+    if (!resp.ok) {
+        throw new Error("HTTP error: " + resp.status);
+    }
+    let buffer = await resp.arrayBuffer();
+    let data = new DataView(buffer);
+
+    const compressionMeth = data.getUint16(8,  littleEndian);
+    const lastModFileTime = data.getUint16(10, littleEndian);
+    const lastModFileDate = data.getUint16(12, littleEndian);
+    const filenameLength  = data.getUint16(26, littleEndian);
+
+    let filename = new TextDecoder() // TODO: specify encoding
+        .decode(buffer.slice(30, 30 + filenameLength));
+
+    const fileData = new Blob([ buffer.slice(localHeaderLength) ]);
+    let blob;
+    if (compressionMeth == 8) {
+        const ds = new DecompressionStream("deflate-raw"); // Baseline 2023
+        const decompressedStream = fileData.stream().pipeThrough(ds);
+        blob = await new Response(decompressedStream)
+            .blob();
+    } else {
+        blob = fileData;
+    }
+    const typeBlob = new Blob([blob], { type: mimeType(filename) });
+    return typeBlob;
+}
+
+function mimeType(filename) {
+    const ext = filename.substring(filename.lastIndexOf('.')+1).toLowerCase();
+    switch (ext) {
+        case 'jpg':
+        case 'jpeg':
+            return "image/jpeg";
+        case 'apng':
+        case 'png':
+        case 'gif':
+        case 'avif':
+        case 'webp':
+            return `image/${ext}`;
+        case 'svg':
+            return "image/svg+xml";
+        case 'htm':
+        case 'html':
+            return "text/html";
+        default:
+            return "text/plain";
+    }
+}
+
+async function getContentLength(url) {
+    let resp;
+    try {
+        resp = await fetch(url, { method: "HEAD" });
+    } catch (error) {
+        const msg = navigator.onLine
+            ? "Server doesn't exist, or Cross-Origin Request may be blocked by"
+            + " restrictive or non-existing CORS header"
+            + " 'Access-Control-Allow-Origin'."
+            : "Internet connectivity issues?";
+        throw new Error(msg + "\n" + error,
+            { cause: error });
+    }
+
+    if (!resp.ok) {
+      throw new Error("HTTP error: " + resp.status);
+    }
+
+    const length = resp.headers.get("content-length");
+    if (length === null) {
+        throw new Error("Content-Length header not found");
+    }
+    // TODO: follow redirects
+    // TODO: check header accept-ranges: bytes
+    // TODO: check header content-type application/epub+zip, application/java-archive
+
+    return parseInt(length, 10);
+}
+
+function getCentralDirectoryHeaders(buffer, count) {
+   /*
+   4.3.12  Central directory structure:
+
+      [central directory header 1]
+      .
+      .
+      . 
+      [central directory header n]
+      [digital signature] 
+
+      File header:
+
+        central file header signature   4 bytes  (0x02014b50)
+        version made by                 2 bytes
+        version needed to extract       2 bytes
+        general purpose bit flag        2 bytes
+        compression method              2 bytes
+        last mod file time              2 bytes
+        last mod file date              2 bytes
+        crc-32                          4 bytes
+        compressed size                 4 bytes
+        uncompressed size               4 bytes
+        file name length                2 bytes
+        extra field length              2 bytes
+        file comment length             2 bytes
+        disk number start               2 bytes
+        internal file attributes        2 bytes
+        external file attributes        4 bytes
+        relative offset of local header 4 bytes
+
+        file name (variable size)
+        extra field (variable size)
+        file comment (variable size)
+    */
+    const centralDir = new DataView(buffer);
+
+    const headers = [];
+
+    let off = 0;
+    for (let i = 0; i < count; i++) {
+
+        let compression = centralDir.getUint16(off + 10, littleEndian);
+        let sizeComprsd = centralDir.getUint32(off + 20, littleEndian);
+        let sizeUncompr = centralDir.getUint32(off + 24, littleEndian);
+        let filenameLen = centralDir.getUint16(off + 28, littleEndian);
+        let extraFldLen = centralDir.getUint16(off + 30, littleEndian);
+        let fileCmntLen = centralDir.getUint16(off + 32, littleEndian);
+        let offsetLocal = centralDir.getUint32(off + 42, littleEndian);
+
+        let filename = new TextDecoder() // TODO: specify encoding
+            .decode(buffer.slice(off + 46, off + 46 + filenameLen));
+
+        headers.push({
+            filename: filename,
+            compression: compression,
+            sizeUncompressed: sizeUncompr,
+            sizeCompressed: sizeComprsd,
+            offsetLocalHeader: offsetLocal,
+            filenameLength: filenameLen,
+            extraFieldLength: extraFldLen,
+        });
+
+        off += 46 + filenameLen + extraFldLen + fileCmntLen;
+    }
+    
+    return headers;
+}
+
+async function getEndOfCentralDirectory(url, contentLength) {
+    let start = contentLength - 1024;
+    let end = contentLength - 1;
+    let resp = await fetch(url, {
+        headers: { "Range": `bytes=${start}-${end}` }
+    });
+    if (!resp.ok) {
+        throw new Error("HTTP error: " + resp.status);
+    }
+    let buffer = await resp.arrayBuffer();
+
+    const endDirPK0506 = [0x50, 0x4b, 0x05, 0x06];
+    let idx = findBytes(buffer, endDirPK0506); // TODO: lastIndexOf
+
+    if (idx < 0)
+        throw new Error("End of central directory not found");
+        // TODO: expand search
+
+    return new DataView(buffer, idx);
+}
+
+function findBytes(buffer, pattern) {
+    const bytes = new Uint8Array(buffer);
+    const pat = new Uint8Array(pattern);
+  
+    for (let i = 0; i <= bytes.length - pat.length; i++) {
+        let found = true;
+        for (let j = 0; j < pat.length; j++) {
+            if (bytes[i + j] !== pat[j]) {
+                found = false;
+                break;
+            }
+        }
+        if (found) return i; // return first index
+    }
+    return -1;
+}
+
+function human(n) {
+    const bytes = Number(n);
+    if (bytes == 0) return "0 B";
+    const k = 1024;
+    const units = ["B", "K", "M", "G", "T", "P"];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    const size = bytes / Math.pow(k, i);
+    const rounded = size >= 10
+        ? Math.round(size)
+        : size.toFixed(1);
+    return rounded + " " + units[i];
+}
+
+function el(tag, ...args) {
+    const e = document.createElement(tag);
+    for (const arg of args) {
+        if (arg instanceof Node) {
+            e.appendChild(arg);
+        } else if (["string", "number", "boolean"].includes(typeof arg)) {
+            e.appendChild(document.createTextNode(arg));
+        } else if (typeof arg === "object") {
+            for (const [k, v] of Object.entries(arg)) {
+                if (typeof v === "function") {
+                    e.addEventListener(k, v);
+                } else {
+                    e.setAttribute(k, v);
+                }
+            }
+        } else {
+            throw new Error(`unsupported arg: ${typeof arg} ${arg}`);
+        }
+    }
+    return e;
+}
+
+const byId = (id) => document.getElementById(id);
+
+init();
+</script>
+
+</body>
+</html>
+
