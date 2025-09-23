@@ -9,7 +9,7 @@ http.createServer((req, res) => {
   console.log('> ' + url);
   if (!url.startsWith("/proxy/")) {
     let filePath = path.join(__dirname,
-      url == "/" ? "index.html" : url.split('?')[0]);
+      url == "/" ? "zip-extractor.html" : url.split('?')[0]);
     fs.readFile(filePath, (err, data) => {
       if (err) {
         res.writeHead(404).end("Not found");
