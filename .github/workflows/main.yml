@@ -34,6 +34,6 @@ jobs:
 
     - name: Deploy zip extractor
       run: >
-        aws s3 cp zip-extractor/*.html s3://i.ting.st/zip-extractor.html
-        --size-only
+        (cd zip-extractor && aws s3 sync . s3://i.ting.st --size-only
+        --exclude "*" --include "zip-extractor.html")
 
