@@ -129,7 +129,8 @@ async function load(url) {
                 el('td', human(header.sizeUncompressed)),
                 el('td', `${ratio}%`),
                 el('td',
-                    el('a', 'get', { "href": "", "click": (e) => {
+                    el('input', { "type": "button", "value": "⤓",
+                      "click": (e) => {
                         e.preventDefault();
                         const span = el('span', {
                                 "style": "display: inline-block;"
