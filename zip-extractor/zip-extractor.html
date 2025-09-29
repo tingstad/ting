@@ -39,30 +39,7 @@ function init() {
 
     window.addEventListener("popstate", update);
 
-    byId('form').addEventListener('submit', (e) => {
-        e.preventDefault();
-        const urlValue = byId('url').value;
-        if (urlValue != queryParamUrl()) {
-            const fullUrl = new URL(location);
-            fullUrl.searchParams.set("url", urlValue);
-            history.pushState({}, "", fullUrl);
-        }
-        const error = byId('error');
-        error.innerHTML = '';
-        load(urlValue)
-            .catch((err) => {
-                error.innerHTML = '';
-                error.appendChild(el('p',
-                    err.message.replaceAll('\n', '<br>')));
-                if (err instanceof MaybeCorsError) {
-                    error.appendChild(el('p',
-                        'Try running ', el('code', 'npx zip-extractor'),
-                         ' from your local machine. ', el('a', {
-                        "href": "https://github.com/tingstad/ting/blob/master/zip-extractor/README.md",
-                        "target": "_blank" }, 'Readme'), '.'));
-                }
-            });
-    });
+    byId('form').addEventListener('submit', submit);
 
     if (location.hostname === "localhost") {
         const orig = window.fetch;
@@ -72,6 +49,31 @@ function init() {
             return orig(proxy, opts);
         };
     }
+}
+
+function submit(e) {
+    e.preventDefault();
+    const urlValue = byId('url').value;
+    if (urlValue != queryParamUrl()) {
+        const fullUrl = new URL(location);
+        fullUrl.searchParams.set("url", urlValue);
+        history.pushState({}, "", fullUrl);
+    }
+    const error = byId('error');
+    error.innerHTML = '';
+    load(urlValue)
+        .catch((err) => {
+            error.innerHTML = '';
+            error.appendChild(el('p',
+                err.message.replaceAll('\n', '<br>')));
+            if (err instanceof MaybeCorsError) {
+                error.appendChild(el('p',
+                    'Try running ', el('code', 'npx zip-extractor'),
+                     ' from your local machine. ', el('a', {
+                    "href": "https://github.com/tingstad/ting/blob/master/zip-extractor/README.md",
+                    "target": "_blank" }, 'Readme'), '.'));
+            }
+        });
 }
 
 function update() {
