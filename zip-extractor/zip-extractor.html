@@ -69,8 +69,14 @@ function submit() {
     load(urlValue)
         .catch((err) => {
             error.innerHTML = '';
-            error.appendChild(el('p',
-                err.message.replaceAll('\n', '<br>')));
+            const p = el('p');
+            const lines = err.message.split('\n');
+            lines.forEach((line, i) => {
+                p.appendChild(document.createTextNode(line));
+                if (i < lines.length-1)
+                    p.appendChild(el('br'));
+            });
+            error.appendChild(p);
             if (err instanceof RangeError || err instanceof RangeCorsError) {
                 error.appendChild(el('p',
                     'If you think range requests are supported, you can try'
