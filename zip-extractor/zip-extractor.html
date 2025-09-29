@@ -20,6 +20,7 @@
     <input type="text" required name="url" id="url" size="70"
         placeholder="URL to zip file"
         value="" />
+    <input type="hidden" id="force" name="force" value="" />
     <input type="submit" id="submit" />
 </form>
 
@@ -36,10 +37,15 @@ function init() {
     if (url) {
         byId('url').value = url;
     }
+    byId('force').value = '';
 
     window.addEventListener("popstate", update);
 
-    byId('form').addEventListener('submit', submit);
+    byId('form').addEventListener('submit', (e) => {
+        e.preventDefault();
+        byId('force').value = '';
+        submit();
+    });
 
     if (location.hostname === "localhost") {
         const orig = window.fetch;
@@ -51,8 +57,7 @@ function init() {
     }
 }
 
-function submit(e) {
-    e.preventDefault();
+function submit() {
     const urlValue = byId('url').value;
     if (urlValue != queryParamUrl()) {
         const fullUrl = new URL(location);
@@ -66,10 +71,22 @@ function submit(e) {
             error.innerHTML = '';
             error.appendChild(el('p',
                 err.message.replaceAll('\n', '<br>')));
+            if (err instanceof RangeError || err instanceof RangeCorsError) {
+                error.appendChild(el('p',
+                    'If you think range requests are supported, you can try'
+                    + ' anyways, at the risk of downloading the whole file. '
+                    , el('input', { "type": "button", "value": "Yes",
+                        "click": (e) => {
+                            byId('force').value = 'true';
+                            setTimeout(submit);
+                        }})
+                    ));
+            }
             if (err instanceof MaybeCorsError) {
                 error.appendChild(el('p',
-                    'Try running ', el('code', 'npx zip-extractor'),
-                     ' from your local machine. ', el('a', {
+                    'To avoid CORS errors, try running ',
+                    el('code', 'npx zip-extractor'),
+                    ' from your local machine. ', el('a', {
                     "href": "https://github.com/tingstad/ting/blob/master/zip-extractor/README.md",
                     "target": "_blank" }, 'Readme'), '.'));
             }
@@ -265,13 +282,14 @@ async function getContentLength(url) {
       throw new Error("HTTP error: " + resp.status);
     }
 
+    const isForced = !!byId('force').value;
     const acceptRanges = resp.headers.get("Accept-Ranges");
-    if (!acceptRanges) {
-        throw new MaybeCorsError("Accept-Ranges header is not set, or hidden"
+    if (!isForced && !acceptRanges) {
+        throw new RangeCorsError("Accept-Ranges header is not set, or hidden"
             + " because of restrictive or non-existing CORS header"
             + " 'Access-Control-Expose-Headers'.");
-    } else if (!acceptRanges.includes('bytes')) {
-        throw new Error("Accept-Ranges does not support 'bytes'");
+    } else if (!isForced && !acceptRanges.includes('bytes')) {
+        throw new RangeError("Accept-Ranges does not include 'bytes'");
     }
 
     // TODO: check header content-type application/epub+zip, application/java-archive
@@ -430,6 +448,9 @@ function el(tag, ...args) {
 const byId = (id) => document.getElementById(id);
 
 class MaybeCorsError extends Error { constructor(...args) { super(...args); }}
+class RangeError extends Error { constructor(...args) { super(...args); }}
+class RangeCorsError extends MaybeCorsError {
+    constructor(...args) { super(...args); }}
 
 init();
 </script>
