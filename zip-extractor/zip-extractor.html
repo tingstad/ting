@@ -51,14 +51,16 @@ function init() {
         error.innerHTML = '';
         load(urlValue)
             .catch((err) => {
-                let msg = err.message.replaceAll('\n', '<br>');
+                error.innerHTML = '';
+                error.appendChild(el('p',
+                    err.message.replaceAll('\n', '<br>')));
                 if (err instanceof MaybeCorsError) {
-                    msg += '<br>Try running <code>npx zip-extractor</code>'
-                        + ' from your local machine. <a href="https://'
-                        + 'github.com/tingstad/ting/blob/master/zip-extractor/'
-                        + 'README.md" target="_blank">Readme</a>.';
+                    error.appendChild(el('p',
+                        'Try running ', el('code', 'npx zip-extractor'),
+                         ' from your local machine. ', el('a', {
+                        "href": "https://github.com/tingstad/ting/blob/master/zip-extractor/README.md",
+                        "target": "_blank" }, 'Readme'), '.'));
                 }
-                error.innerHTML = msg;
             });
     });
 
