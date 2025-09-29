@@ -40,7 +40,11 @@ http.createServer((req, res) => {
     };
     res.writeHead(remoteRes.statusCode, headers);
     remoteRes.pipe(res);
-  }).on("error", (err) => { console.log(err); res.end(err.toString()); });
+  }).on("error", (err) => {
+    console.log(err);
+    try { res.writeHead(500) } catch (ignore) {}
+    res.end(err.toString());
+  });
   req.pipe(remoteReq);
 }).listen(8080, () => console.log("Running on http://localhost:8080"));
 
