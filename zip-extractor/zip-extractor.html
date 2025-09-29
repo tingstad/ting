@@ -51,7 +51,14 @@ function init() {
         error.innerHTML = '';
         load(urlValue)
             .catch((err) => {
-                error.innerHTML = err.message.replaceAll('\n', '<br>');
+                let msg = err.message.replaceAll('\n', '<br>');
+                if (err instanceof MaybeCorsError) {
+                    msg += '<br>Try running <code>npx zip-extractor</code>'
+                        + ' from your local machine. <a href="https://'
+                        + 'github.com/tingstad/ting/blob/master/zip-extractor/'
+                        + 'README.md" target="_blank">Readme</a>.';
+                }
+                error.innerHTML = msg;
             });
     });
 
@@ -240,26 +247,36 @@ async function getContentLength(url) {
     try {
         resp = await fetch(url, { method: "HEAD" });
     } catch (error) {
-        const msg = navigator.onLine
-            ? "Server doesn't exist, or Cross-Origin Request may be blocked by"
-            + " restrictive or non-existing CORS header"
-            + " 'Access-Control-Allow-Origin'."
-            : "Internet connectivity issues?";
-        throw new Error(msg + "\n" + error,
-            { cause: error });
+        const opts = { cause: error };
+        if (!navigator.onLine)
+            throw new Error("Internet connectivity issues?\n" + error, opts);
+        else
+            throw new MaybeCorsError(
+                "Server doesn't exist, or Cross-Origin Request may be blocked"
+                + " by restrictive or non-existing CORS header"
+                + " 'Access-Control-Allow-Origin'.\n" + error, opts);
     }
 
     if (!resp.ok) {
       throw new Error("HTTP error: " + resp.status);
     }
 
+    const acceptRanges = resp.headers.get("Accept-Ranges");
+    if (!acceptRanges) {
+        throw new MaybeCorsError("Accept-Ranges header is not set, or hidden"
+            + " because of restrictive or non-existing CORS header"
+            + " 'Access-Control-Expose-Headers'.");
+    } else if (!acceptRanges.includes('bytes')) {
+        throw new Error("Accept-Ranges does not support 'bytes'");
+    }
+
+    // TODO: check header content-type application/epub+zip, application/java-archive
+
     const length = resp.headers.get("content-length");
     if (length === null) {
+        // TODO: smart scan from top using Range
         throw new Error("Content-Length header not found");
     }
-    // TODO: follow redirects
-    // TODO: check header accept-ranges: bytes
-    // TODO: check header content-type application/epub+zip, application/java-archive
 
     return parseInt(length, 10);
 }
@@ -407,6 +424,8 @@ function el(tag, ...args) {
 }
 
 const byId = (id) => document.getElementById(id);
+
+class MaybeCorsError extends Error { constructor(...args) { super(...args); }}
 
 init();
 </script>
