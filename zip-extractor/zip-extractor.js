@@ -35,6 +35,7 @@ http.createServer((req, res) => {
     const headers = {
       ...remoteRes.headers,
       "access-control-allow-origin": "*",
+      "access-control-allow-methods": "*",
       "access-control-expose-headers": "Accept-Ranges",
     };
     res.writeHead(remoteRes.statusCode, headers);
