@@ -66,8 +66,11 @@ function submit() {
     }
     const error = byId('error');
     error.innerHTML = '';
-    load(urlValue)
+    const container = el('div');
+    gui.prepend(container);
+    load(urlValue, container)
         .catch((err) => {
+            gui.removeChild(container);
             error.innerHTML = '';
             const p = el('p');
             const lines = err.message.split('\n');
@@ -113,7 +116,14 @@ function queryParamUrl() {
     return urlParams.get('url');
 }
 
-async function load(url) {
+async function load(url, container) {
+
+    const spinner = el('span', {
+            "style": "display: inline-block;"
+                   + "transform-origin: 50% 50%;"
+                   + "animation: spin 2s linear infinite;"
+            }, '⌛');
+    container.appendChild(spinner);
 
     const length = await getContentLength(url);
     if (!length) {
@@ -185,7 +195,7 @@ async function load(url) {
                 ),
             )
         );
-        gui.appendChild(table);
+        spinner.replaceWith(table);
     });
 }
 
