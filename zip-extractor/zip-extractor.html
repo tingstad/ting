@@ -24,13 +24,13 @@
     <input type="submit" id="submit" />
 </form>
 
-<div id="files" style=""></div>
-
+<div id="files"></div>
 
 <script>
 
 const littleEndian = true;
 const gui = document.getElementById('files');
+const localProxy = location.hostname === "localhost";
 
 function init() {
     const url = queryParamUrl();
@@ -47,7 +47,7 @@ function init() {
         submit();
     });
 
-    if (location.hostname === "localhost") {
+    if (localProxy) {
         const orig = window.fetch;
         window.fetch = function(url, opts) {
             const proxy =
@@ -299,13 +299,8 @@ async function getContentLength(url) {
     }
 
     const isForced = !!byId('force').value;
-    const acceptRanges = resp.headers.get("Accept-Ranges");
-    if (!isForced && !acceptRanges) {
-        throw new RangeCorsError("Accept-Ranges header is not set, or hidden"
-            + " because of restrictive or non-existing CORS header"
-            + " 'Access-Control-Expose-Headers'.");
-    } else if (!isForced && !acceptRanges.includes('bytes')) {
-        throw new RangeError("Accept-Ranges does not include 'bytes'");
+    if (!isForced) {
+        await checkAcceptRanges(url, resp.headers);
     }
 
     // TODO: check header content-type application/epub+zip, application/java-archive
@@ -317,6 +312,40 @@ async function getContentLength(url) {
     }
 
     return parseInt(length, 10);
+}
+
+async function checkAcceptRanges(url, headers) {
+
+    let acceptRanges = headers.get("Accept-Ranges");
+
+    const noRangesError = new RangeError("Accept-Ranges header not found");
+    const noBytesError = new RangeError("Accept-Ranges does not include 'bytes'");
+
+    if (!acceptRanges && localProxy) {
+        throw noRangesError;
+    }
+    if (!acceptRanges) {
+        let okResp = null;
+        try {
+            const res = await fetch(
+                `https://space.ting.st/proxy?url=${encodeURIComponent(url)}`,
+                { method: "HEAD" });
+            if (res.ok) okResp = res;
+        } catch (proxyError) {}
+        if (okResp) {
+            acceptRanges = okResp.headers.get("Accept-Ranges");
+        } else {
+            throw new RangeCorsError("Accept-Ranges header is not set, or"
+            + " hidden because of restrictive or non-existing CORS header"
+            + " 'Access-Control-Expose-Headers'.");
+        }
+    }
+    if (!acceptRanges) {
+        throw noRangesError;
+    }
+    if (!acceptRanges.includes('bytes')) {
+        throw noBytesError;
+    }
 }
 
 function getCentralDirectoryHeaders(buffer, count) {
