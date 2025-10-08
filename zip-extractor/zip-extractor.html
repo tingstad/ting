@@ -190,6 +190,12 @@ async function load(url, container) {
                                     el('a', '💾', { "target": "_blank",
                                         "href": URL.createObjectURL(blob) })
                                 );
+                            })
+                            .catch((error) => {
+                                span.replaceWith(
+                                    el('span', '💀', {
+                                        "title": error.toString() })
+                                );
                             });
                     }})
                 ),
