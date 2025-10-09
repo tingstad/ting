@@ -10,7 +10,7 @@
     "zip-extractor.html"
   ],
   "scripts": {
-    "test": "true"
+    "test": "./test.sh"
   },
   "repository": {
     "type": "git",
