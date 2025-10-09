@@ -184,7 +184,7 @@ async function load(url, container) {
                         e.target.replaceWith(span);
                         const entry = centralDirHeaders
                             .filter((it) => it.filename == header.filename)[0];
-                        getEntry(url, entry)
+                        getEntry(url, entry, length)
                             .then((blob) => {
                                 span.replaceWith(
                                     el('a', '💾', { "target": "_blank",
@@ -205,7 +205,7 @@ async function load(url, container) {
     });
 }
 
-async function getEntry(url, entry) {
+async function getEntry(url, entry, contentLength) {
    /*
    4.3.7  Local file header:
 
@@ -225,12 +225,14 @@ async function getEntry(url, entry) {
       extra field (variable size)
     */
 
-    const localHeaderLength = 30
+    let localHeaderLength = 30
         + entry.filenameLength
-        + entry.extraFieldLength;
+        + entry.extraFieldLength
+        + 32; // add a buffer because local extraFieldLength may be larger
 
     const start = entry.offsetLocalHeader;
-    const end = start + localHeaderLength + entry.sizeCompressed - 1;
+    const end = Math.min(contentLength - 1,
+        start + localHeaderLength + entry.sizeCompressed);
 
     let resp = await fetch(url, {
         headers: { "Range": `bytes=${start}-${end}` }
@@ -245,11 +247,17 @@ async function getEntry(url, entry) {
     const lastModFileTime = data.getUint16(10, littleEndian);
     const lastModFileDate = data.getUint16(12, littleEndian);
     const filenameLength  = data.getUint16(26, littleEndian);
+    const extraFldLength  = data.getUint16(28, littleEndian);
 
     let filename = new TextDecoder() // TODO: specify encoding
         .decode(buffer.slice(30, 30 + filenameLength));
 
-    const fileData = new Blob([ buffer.slice(localHeaderLength) ]);
+    localHeaderLength = 30
+        + filenameLength
+        + extraFldLength;
+
+    const fileData = new Blob([ buffer
+        .slice(localHeaderLength, localHeaderLength + entry.sizeCompressed) ]);
     let blob;
     if (compressionMeth == 8) {
         const ds = new DecompressionStream("deflate-raw"); // Baseline 2023
