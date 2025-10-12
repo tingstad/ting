@@ -151,7 +151,7 @@ async function load(url, container) {
     const table = el('table',
         el('tr',
             el('th', { "colspan": "6", "style": "text-align: left" },
-                el('a', { "href": url }, url),
+                el('a', { "href": url, "target": "_blank" }, url),
                     el('span', { "style": "font-weight: 400" },
                         " (" + human(length) + ")")
             )),
