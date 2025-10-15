@@ -58,12 +58,26 @@ function init() {
             return orig(proxy, opts);
         };
     }
+
+    if (new URLSearchParams(location.search).get('autoload')) {
+        submit();
+    }
 }
 
 function submit() {
     const urlValue = byId('url').value;
+    if (urlValue.toLowerCase().startsWith('http://')
+        && location.protocol == 'https:'
+        && confirm('Proceed to http?')
+    ) {
+        const u = new URL(location.href);
+        u.protocol = 'http:';
+        u.searchParams.set('autoload', 'true');
+        location.href = u;
+        return;
+    }
     if (urlValue != queryParamUrl()) {
-        const fullUrl = new URL(location);
+        const fullUrl = new URL(location.href);
         fullUrl.searchParams.set("url", urlValue);
         history.pushState({}, "", fullUrl);
     }
