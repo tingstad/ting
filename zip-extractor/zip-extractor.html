@@ -460,7 +460,7 @@ async function getEndOfCentralDirectory(url, contentLength) {
     let buffer = await resp.arrayBuffer();
 
     const endDirPK0506 = [0x50, 0x4b, 0x05, 0x06];
-    let idx = findBytes(buffer, endDirPK0506); // TODO: lastIndexOf
+    let idx = lastIndexOf(buffer, endDirPK0506);
 
     if (idx < 0)
         throw new Error("End of central directory not found");
@@ -469,11 +469,32 @@ async function getEndOfCentralDirectory(url, contentLength) {
     return new DataView(buffer, idx);
 }
 
-function findBytes(buffer, pattern) {
+function indexOf(buffer, pattern) {
     const bytes = new Uint8Array(buffer);
     const pat = new Uint8Array(pattern);
-  
+
+    if (!pat.length) return 0;
+
     for (let i = 0; i <= bytes.length - pat.length; i++) {
+        let found = true;
+        for (let j = 0; j < pat.length; j++) {
+            if (bytes[i + j] !== pat[j]) {
+                found = false;
+                break;
+            }
+        }
+        if (found) return i; // return first index
+    }
+    return -1;
+}
+
+function lastIndexOf(buffer, pattern) {
+    const bytes = new Uint8Array(buffer);
+    const pat = new Uint8Array(pattern);
+
+    if (!pat.length) return 0;
+
+    for (let i = bytes.length - pat.length; i >= 0; i--) {
         let found = true;
         for (let j = 0; j < pat.length; j++) {
             if (bytes[i + j] !== pat[j]) {
