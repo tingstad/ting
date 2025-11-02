@@ -71,6 +71,7 @@ function submit() {
     ) {
         const u = new URL(location.href);
         u.protocol = 'http:';
+        u.searchParams.set('url', urlValue);
         u.searchParams.set('autoload', 'true');
         location.href = u;
         return;
