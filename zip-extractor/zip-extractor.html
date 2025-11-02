@@ -64,16 +64,25 @@ function init() {
 }
 
 function submit() {
+    const error = byId('error');
+    error.innerHTML = '';
     const urlValue = byId('url').value;
     if (urlValue.toLowerCase().startsWith('http://')
         && location.protocol == 'https:'
-        && confirm('Proceed to http?')
     ) {
         const u = new URL(location.href);
         u.protocol = 'http:';
         u.searchParams.set('url', urlValue);
         u.searchParams.set('autoload', 'true');
-        location.href = u;
+        error.appendChild(el('p',
+            'URL is http: so you must go to: ',
+                el('a', { "href": u }, u.toString())));
+        error.appendChild(el('p',
+            'Or you can try running ',
+            el('code', 'npx zip-extractor'),
+            ' from your local machine. ', el('a', {
+            "href": "https://github.com/tingstad/ting/blob/master/zip-extractor/README.md",
+            "target": "_blank" }, 'Readme'), '.'));
         return;
     }
     if (urlValue != queryParamUrl()) {
@@ -81,8 +90,6 @@ function submit() {
         fullUrl.searchParams.set("url", urlValue);
         history.pushState({}, "", fullUrl);
     }
-    const error = byId('error');
-    error.innerHTML = '';
     const container = el('div');
     gui.prepend(container);
     load(urlValue, container)
