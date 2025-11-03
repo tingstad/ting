@@ -7,7 +7,7 @@ Run locally:
 ```shell
 npx zip-extractor
 ```
-or download and:
+or [download](https://github.com/tingstad/ting/tree/master/zip-extractor) and:
 ```shell
 ./zip-extractor.js
 ```
