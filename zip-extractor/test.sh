@@ -20,6 +20,7 @@ const file = [
 0x00, 0x00, 0x00, 0x00 ];
 
 const littleEndian = true;
+const decodeIBM437 = newIBM437decoder();
 
 const centralDirPK0102 = [0x50, 0x4b, 0x01, 0x02];
 
@@ -35,6 +36,11 @@ assert.deepEqual(
         "filenameLength": 12,
         "extraFieldLength": 24,
     }]);
+
+assert.equal(decodeIBM437([ 0x61 ]), 'a');
+assert.equal(decodeIBM437([ 0x41, 0x42, 0x43 ]), 'ABC');
+assert.equal(decodeIBM437([ 0x01, 0x02, 0x03, 0x04, 0x05, 0x06 ]), '☺☻♥♦♣♠');
+assert.equal(decodeIBM437([ 0x81, 0x82, 0x83, 0x84, 0x85, 0x86 ]), 'üéâäàå');
 
 assert.equal(human(0), '0 B');
 assert.equal(human(900), '900 B');

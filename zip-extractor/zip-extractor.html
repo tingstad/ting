@@ -267,14 +267,22 @@ async function getEntry(url, entry, contentLength) {
     let buffer = await resp.arrayBuffer();
     let data = new DataView(buffer);
 
+    const generalPurpFlag = data.getUint16(8,  littleEndian);
     const compressionMeth = data.getUint16(8,  littleEndian);
     const lastModFileTime = data.getUint16(10, littleEndian);
     const lastModFileDate = data.getUint16(12, littleEndian);
     const filenameLength  = data.getUint16(26, littleEndian);
     const extraFldLength  = data.getUint16(28, littleEndian);
 
-    let filename = new TextDecoder() // TODO: specify encoding
-        .decode(buffer.slice(30, 30 + filenameLength));
+    const UTF8 = 0x0800; // 1000 0000 0000
+
+    const isUTF8 = (generalPurpFlag & UTF8);
+
+    const filenameBuffer = buffer.slice(30, 30 + filenameLength);
+
+    let filename = isUTF8
+        ? new TextDecoder("utf-8").decode(filenameBuffer)
+        : decodeIBM437(new Uint8Array(filenameBuffer));
 
     localHeaderLength = 30
         + filenameLength
@@ -345,7 +353,7 @@ async function getContentLength(url) {
 
     const length = resp.headers.get("content-length");
     if (length === null) {
-        // TODO: smart scan from top using Range
+        // TODO: smart scan from top using Range if !isForced (accept-ranges ok)
         throw new Error("Content-Length header not found");
     }
 
@@ -428,6 +436,7 @@ function getCentralDirectoryHeaders(buffer, count) {
     let off = 0;
     for (let i = 0; i < count; i++) {
 
+        let generalPurp = centralDir.getUint16(off +  8, littleEndian);
         let compression = centralDir.getUint16(off + 10, littleEndian);
         let sizeComprsd = centralDir.getUint32(off + 20, littleEndian);
         let sizeUncompr = centralDir.getUint32(off + 24, littleEndian);
@@ -436,8 +445,22 @@ function getCentralDirectoryHeaders(buffer, count) {
         let fileCmntLen = centralDir.getUint16(off + 32, littleEndian);
         let offsetLocal = centralDir.getUint32(off + 42, littleEndian);
 
-        let filename = new TextDecoder() // TODO: specify encoding
-            .decode(buffer.slice(off + 46, off + 46 + filenameLen));
+/*
+D.1 The ZIP format has historically supported only the original IBM PC character
+encoding set, commonly referred to as IBM Code Page 437.
+
+D.2 If general purpose bit 11 is unset, the file name and comment SHOULD conform
+to the original ZIP character encoding.  */
+
+        const UTF8 = 0x0800; // 1000 0000 0000
+
+        const isUTF8 = (generalPurp & UTF8);
+
+        const filenameBuffer = buffer.slice(off + 46, off + 46 + filenameLen);
+
+        let filename = isUTF8
+            ? new TextDecoder("utf-8").decode(filenameBuffer)
+            : decodeIBM437(new Uint8Array(filenameBuffer));
 
         headers.push({
             filename: filename,
@@ -474,6 +497,18 @@ async function getEndOfCentralDirectory(url, contentLength) {
         // TODO: expand search
 
     return new DataView(buffer, idx);
+}
+
+const decodeIBM437 = newIBM437decoder();
+
+function newIBM437decoder() {
+    return decoder(tableCP437());
+}
+
+function decoder(table) {
+    return function(bytes) {
+        return Array.from(bytes, b => table[b]).join('');
+    }
 }
 
 function indexOf(buffer, pattern) {
@@ -555,6 +590,266 @@ class MaybeCorsError extends Error { constructor(...args) { super(...args); }}
 class RangeError extends Error { constructor(...args) { super(...args); }}
 class RangeCorsError extends MaybeCorsError {
     constructor(...args) { super(...args); }}
+
+function tableCP437() {  return [  // https://mw.rat.bz/cp437map/
+'\u2007',  //   FIGURE SPACE
+'\u263A',  // ☺ WHITE SMILING FACE
+'\u263B',  // ☻ BLACK SMILING FACE
+'\u2665',  // ♥ BLACK HEART SUIT
+'\u2666',  // ♦ BLACK DIAMOND SUIT
+'\u2663',  // ♣ BLACK CLUB SUIT
+'\u2660',  // ♠ BLACK SPADE SUIT
+'\u2022',  // • BULLET
+'\u25D8',  // ◘ INVERSE BULLET
+'\u25CB',  // ○ WHITE CIRCLE
+'\u25D9',  // ◙ INVERSE WHITE CIRCLE
+'\u2642',  // ♂ MALE SIGN
+'\u2640',  // ♀ FEMALE SIGN
+'\u266A',  // ♪ EIGHTH NOTE              INCORRECT - BUT WIDELY SUPPORTED
+'\u266C',  // ♬ BEAMED SIXTEENTH NOTES       CORRECT
+'\u263C',  // ☼ WHITE SUN WITH RAYS
+'\u25B6',  // ▶ BLACK RIGHT-POINTING TRIANGLE    CORRECT - BUT NOT WIDELY SUPPORTED
+'\u25C0',  // ◀ BLACK LEFT-POINTING TRIANGLE     CORRECT - BUT NOT WIDELY SUPPORTED
+'\u2195',  // ↕ UP DOWN ARROW
+'\u203C',  // ‼ DOUBLE EXCLAMATION MARK
+'\u00B6',  // ¶ PILCROW SIGN
+'\u00A7',  // § SECTION SIGN
+'\u25AC',  // ▬ BLACK RECTANGLE
+'\u21A8',  // ↨ UP DOWN ARROW WITH BASE
+'\u2191',  // ↑ UPWARDS ARROW
+'\u2193',  // ↓ DOWNWARDS ARROW
+'\u2192',  // → RIGHTWARDS ARROW
+'\u2190',  // ← LEFTWARDS ARROW
+'\u2319',  // ⌙ TURNED NOT SIGN          CORRECT
+'\u2194',  // ↔ LEFT RIGHT ARROW
+'\u25B2',  // ▲ BLACK UP-POINTING TRIANGLE
+'\u25BC',  // ▼ BLACK DOWN-POINTING TRIANGLE
+'\u0020',  //   SPACE
+'\u0021',  // ! EXCLAMATION MARK
+'\u0022',  // " QUOTATION MARK
+'\u0023',  // # NUMBER SIGN
+'\u0024',  // $ DOLLAR SIGN
+'\u0025',  // % PERCENT SIGN
+'\u0026',  // & AMPERSAND
+'\u2019',  // ’ RIGHT SINGLE QUOTATION MARK      CORRECT
+'\u0028',  // ( LEFT PARENTHESIS
+'\u0029',  // ) RIGHT PARENTHESIS
+'\u002A',  // * ASTERISK
+'\u002B',  // + PLUS SIGN
+'\u002C',  // , COMMA
+'\u002D',  // - HYPHEN-MINUS
+'\u002E',  // . FULL STOP
+'\u002F',  // / SOLIDUS
+'\u0030',  // 0 DIGIT ZERO
+'\u0031',  // 1 DIGIT ONE
+'\u0032',  // 2 DIGIT TWO
+'\u0033',  // 3 DIGIT THREE
+'\u0034',  // 4 DIGIT FOUR
+'\u0035',  // 5 DIGIT FIVE
+'\u0036',  // 6 DIGIT SIX
+'\u0037',  // 7 DIGIT SEVEN
+'\u0038',  // 8 DIGIT EIGHT
+'\u0039',  // 9 DIGIT NINE
+'\u003A',  // : COLON
+'\u003B',  // ; SEMICOLON
+'\u003C',  // < LESS-THAN SIGN
+'\u003D',  // = EQUALS SIGN
+'\u003E',  // > GREATER-THAN SIGN
+'\u003F',  // ? QUESTION MARK
+'\u0040',  // @ COMMERCIAL AT
+'\u0041',  // A LATIN CAPITAL LETTER A
+'\u0042',  // B LATIN CAPITAL LETTER B
+'\u0043',  // C LATIN CAPITAL LETTER C
+'\u0044',  // D LATIN CAPITAL LETTER D
+'\u0045',  // E LATIN CAPITAL LETTER E
+'\u0046',  // F LATIN CAPITAL LETTER F
+'\u0047',  // G LATIN CAPITAL LETTER G
+'\u0048',  // H LATIN CAPITAL LETTER H
+'\u0049',  // I LATIN CAPITAL LETTER I
+'\u004A',  // J LATIN CAPITAL LETTER J
+'\u004B',  // K LATIN CAPITAL LETTER K
+'\u004C',  // L LATIN CAPITAL LETTER L
+'\u004D',  // M LATIN CAPITAL LETTER M
+'\u004E',  // N LATIN CAPITAL LETTER N
+'\u004F',  // O LATIN CAPITAL LETTER O
+'\u0050',  // P LATIN CAPITAL LETTER P
+'\u0051',  // Q LATIN CAPITAL LETTER Q
+'\u0052',  // R LATIN CAPITAL LETTER R
+'\u0053',  // S LATIN CAPITAL LETTER S
+'\u0054',  // T LATIN CAPITAL LETTER T
+'\u0055',  // U LATIN CAPITAL LETTER U
+'\u0056',  // V LATIN CAPITAL LETTER V
+'\u0057',  // W LATIN CAPITAL LETTER W
+'\u0058',  // X LATIN CAPITAL LETTER X
+'\u0059',  // Y LATIN CAPITAL LETTER Y
+'\u005A',  // Z LATIN CAPITAL LETTER Z
+'\u005B',  // [ LEFT SQUARE BRACKET
+'\u005C',  // \ REVERSE SOLIDUS
+'\u005D',  // ] RIGHT SQUARE BRACKET
+'\u005E',  // ^ CIRCUMFLEX ACCENT
+'\u005F',  // _ LOW LINE
+'\u0060',  // ` GRAVE ACCENT
+'\u0061',  // a LATIN SMALL LETTER A
+'\u0062',  // b LATIN SMALL LETTER B
+'\u0063',  // c LATIN SMALL LETTER C
+'\u0064',  // d LATIN SMALL LETTER D
+'\u0065',  // e LATIN SMALL LETTER E
+'\u0066',  // f LATIN SMALL LETTER F
+'\u0067',  // g LATIN SMALL LETTER G
+'\u0068',  // h LATIN SMALL LETTER H
+'\u0069',  // i LATIN SMALL LETTER I
+'\u006A',  // j LATIN SMALL LETTER J
+'\u006B',  // k LATIN SMALL LETTER K
+'\u006C',  // l LATIN SMALL LETTER L
+'\u006D',  // m LATIN SMALL LETTER M
+'\u006E',  // n LATIN SMALL LETTER N
+'\u006F',  // o LATIN SMALL LETTER O
+'\u0070',  // p LATIN SMALL LETTER P
+'\u0071',  // q LATIN SMALL LETTER Q
+'\u0072',  // r LATIN SMALL LETTER R
+'\u0073',  // s LATIN SMALL LETTER S
+'\u0074',  // t LATIN SMALL LETTER T
+'\u0075',  // u LATIN SMALL LETTER U
+'\u0076',  // v LATIN SMALL LETTER V
+'\u0077',  // w LATIN SMALL LETTER W
+'\u0078',  // x LATIN SMALL LETTER X
+'\u0079',  // y LATIN SMALL LETTER Y
+'\u007A',  // z LATIN SMALL LETTER Z
+'\u007B',  // { LEFT CURLY BRACKET
+'\u00A6',  // ¦ BROKEN BAR               CORRECT
+'\u007D',  // } RIGHT CURLY BRACKET
+'\u007E',  // ~ TILDE
+'\u2302',  // ⌂ HOUSE                CORRECT
+'\u00C7',  // Ç LATIN CAPITAL LETTER C WITH CEDILLA
+'\u00FC',  // ü LATIN SMALL LETTER U WITH DIAERESIS
+'\u00E9',  // é LATIN SMALL LETTER E WITH ACUTE
+'\u00E2',  // â LATIN SMALL LETTER A WITH CIRCUMFLEX
+'\u00E4',  // ä LATIN SMALL LETTER A WITH DIAERESIS
+'\u00E0',  // à LATIN SMALL LETTER A WITH GRAVE
+'\u00E5',  // å LATIN SMALL LETTER A WITH RING ABOVE
+'\u00E7',  // ç LATIN SMALL LETTER C WITH CEDILLA
+'\u00EA',  // ê LATIN SMALL LETTER E WITH CIRCUMFLEX
+'\u00EB',  // ë LATIN SMALL LETTER E WITH DIAERESIS
+'\u00E8',  // è LATIN SMALL LETTER E WITH GRAVE
+'\u00EF',  // ï LATIN SMALL LETTER I WITH DIAERESIS
+'\u00EE',  // î LATIN SMALL LETTER I WITH CIRCUMFLEX
+'\u00EC',  // ì LATIN SMALL LETTER I WITH GRAVE
+'\u00C4',  // Ä LATIN CAPITAL LETTER A WITH DIAERESIS
+'\u00C5',  // Å LATIN CAPITAL LETTER A WITH RING ABOVE
+'\u00C9',  // É LATIN CAPITAL LETTER E WITH ACUTE
+'\u00E6',  // æ LATIN SMALL LETTER AE
+'\u00C6',  // Æ LATIN CAPITAL LETTER AE
+'\u00F4',  // ô LATIN SMALL LETTER O WITH CIRCUMFLEX
+'\u00F6',  // ö LATIN SMALL LETTER O WITH DIAERESIS
+'\u00F2',  // ò LATIN SMALL LETTER O WITH GRAVE
+'\u00FB',  // û LATIN SMALL LETTER U WITH CIRCUMFLEX
+'\u00F9',  // ù LATIN SMALL LETTER U WITH GRAVE
+'\u00FF',  // ÿ LATIN SMALL LETTER Y WITH DIAERESIS
+'\u00D6',  // Ö LATIN CAPITAL LETTER O WITH DIAERESIS
+'\u00DC',  // Ü LATIN CAPITAL LETTER U WITH DIAERESIS
+'\u00A2',  // ¢ CENT SIGN
+'\u00A3',  // £ POUND SIGN
+'\u00A5',  // ¥ YEN SIGN
+'\u20A7',  // ₧ PESETA SIGN
+'\u0192',  // ƒ LATIN SMALL LETTER F WITH HOOK
+'\u00E1',  // á LATIN SMALL LETTER A WITH ACUTE
+'\u00ED',  // í LATIN SMALL LETTER I WITH ACUTE
+'\u00F3',  // ó LATIN SMALL LETTER O WITH ACUTE
+'\u00FA',  // ú LATIN SMALL LETTER U WITH ACUTE
+'\u00F1',  // ñ LATIN SMALL LETTER N WITH TILDE
+'\u00D1',  // Ñ LATIN CAPITAL LETTER N WITH TILDE
+'\u00AA',  // ª FEMININE ORDINAL INDICATOR
+'\u00BA',  // º MASCULINE ORDINAL INDICATOR
+'\u00BF',  // ¿ INVERTED QUESTION MARK
+'\u2310',  // ⌐ REVERSED NOT SIGN
+'\u00AC',  // ¬ NOT SIGN
+'\u00BD',  // ½ VULGAR FRACTION ONE HALF
+'\u00BC',  // ¼ VULGAR FRACTION ONE QUARTER
+'\u00A1',  // ¡ INVERTED EXCLAMATION MARK
+'\u00AB',  // « LEFT-POINTING DOUBLE ANGLE QUOTATION MARK
+'\u00BB',  // » RIGHT-POINTING DOUBLE ANGLE QUOTATION MARK
+'\u2591',  // ░ LIGHT SHADE
+'\u2592',  // ▒ MEDIUM SHADE
+'\u2593',  // ▓ DARK SHADE
+'\u2502',  // │ BOX DRAWINGS LIGHT VERTICAL
+'\u2524',  // ┤ BOX DRAWINGS LIGHT VERTICAL AND LEFT
+'\u2561',  // ╡ BOX DRAWINGS VERTICAL SINGLE AND LEFT DOUBLE
+'\u2562',  // ╢ BOX DRAWINGS VERTICAL DOUBLE AND LEFT SINGLE
+'\u2556',  // ╖ BOX DRAWINGS DOWN DOUBLE AND LEFT SINGLE
+'\u2555',  // ╕ BOX DRAWINGS DOWN SINGLE AND LEFT DOUBLE
+'\u2563',  // ╣ BOX DRAWINGS DOUBLE VERTICAL AND LEFT
+'\u2551',  // ║ BOX DRAWINGS DOUBLE VERTICAL
+'\u2557',  // ╗ BOX DRAWINGS DOUBLE DOWN AND LEFT
+'\u255D',  // ╝ BOX DRAWINGS DOUBLE UP AND LEFT
+'\u255C',  // ╜ BOX DRAWINGS UP DOUBLE AND LEFT SINGLE
+'\u255B',  // ╛ BOX DRAWINGS UP SINGLE AND LEFT DOUBLE
+'\u2510',  // ┐ BOX DRAWINGS LIGHT DOWN AND LEFT
+'\u2514',  // └ BOX DRAWINGS LIGHT UP AND RIGHT
+'\u2534',  // ┴ BOX DRAWINGS LIGHT UP AND HORIZONTAL
+'\u252C',  // ┬ BOX DRAWINGS LIGHT DOWN AND HORIZONTAL
+'\u251C',  // ├ BOX DRAWINGS LIGHT VERTICAL AND RIGHT
+'\u2500',  // ─ BOX DRAWINGS LIGHT HORIZONTAL
+'\u253C',  // ┼ BOX DRAWINGS LIGHT VERTICAL AND HORIZONTAL
+'\u255E',  // ╞ BOX DRAWINGS VERTICAL SINGLE AND RIGHT DOUBLE
+'\u255F',  // ╟ BOX DRAWINGS VERTICAL DOUBLE AND RIGHT SINGLE
+'\u255A',  // ╚ BOX DRAWINGS DOUBLE UP AND RIGHT
+'\u2554',  // ╔ BOX DRAWINGS DOUBLE DOWN AND RIGHT
+'\u2569',  // ╩ BOX DRAWINGS DOUBLE UP AND HORIZONTAL
+'\u2566',  // ╦ BOX DRAWINGS DOUBLE DOWN AND HORIZONTAL
+'\u2560',  // ╠ BOX DRAWINGS DOUBLE VERTICAL AND RIGHT
+'\u2550',  // ═ BOX DRAWINGS DOUBLE HORIZONTAL
+'\u256C',  // ╬ BOX DRAWINGS DOUBLE VERTICAL AND HORIZONTAL
+'\u2567',  // ╧ BOX DRAWINGS UP SINGLE AND HORIZONTAL DOUBLE
+'\u2568',  // ╨ BOX DRAWINGS UP DOUBLE AND HORIZONTAL SINGLE
+'\u2564',  // ╤ BOX DRAWINGS DOWN SINGLE AND HORIZONTAL DOUBLE
+'\u2565',  // ╥ BOX DRAWINGS DOWN DOUBLE AND HORIZONTAL SINGLE
+'\u2559',  // ╙ BOX DRAWINGS UP DOUBLE AND RIGHT SINGLE
+'\u2558',  // ╘ BOX DRAWINGS UP SINGLE AND RIGHT DOUBLE
+'\u2552',  // ╒ BOX DRAWINGS DOWN SINGLE AND RIGHT DOUBLE
+'\u2553',  // ╓ BOX DRAWINGS DOWN DOUBLE AND RIGHT SINGLE
+'\u256B',  // ╫ BOX DRAWINGS VERTICAL DOUBLE AND HORIZONTAL SINGLE
+'\u256A',  // ╪ BOX DRAWINGS VERTICAL SINGLE AND HORIZONTAL DOUBLE
+'\u2518',  // ┘ BOX DRAWINGS LIGHT UP AND LEFT
+'\u250C',  // ┌ BOX DRAWINGS LIGHT DOWN AND RIGHT
+'\u2588',  // █ FULL BLOCK
+'\u2584',  // ▄ LOWER HALF BLOCK
+'\u258C',  // ▌ LEFT HALF BLOCK
+'\u2590',  // ▐ RIGHT HALF BLOCK
+'\u2580',  // ▀ UPPER HALF BLOCK
+'\u03B1',  // α GREEK SMALL LETTER ALPHA     CORRECT
+'\u03B2',  // β GREEK SMALL LETTER BETA      CORRECT
+'\u0393',  // Γ GREEK CAPITAL LETTER GAMMA
+'\u03C0',  // π GREEK SMALL LETTER PI
+'\u03A3',  // Σ GREEK CAPITAL LETTER SIGMA
+'\u03C3',  // σ GREEK SMALL LETTER SIGMA
+'\u03BC',  // μ GREEK SMALL LETTER MU        CORRECT
+'\u03B3',  // γ GREEK SMALL LETTER GAMMA     CORRECT
+'\u03A6',  // Φ GREEK CAPITAL LETTER PHI
+'\u03B8',  // θ GREEK SMALL LETTER THETA     CORRECT
+'\u03A9',  // Ω GREEK CAPITAL LETTER OMEGA       CORRECT
+'\u03B4',  // δ GREEK SMALL LETTER DELTA
+'\u221E',  // ∞ INFINITY
+'\u2205',  // ∅ EMPTY SET                CORRECT - BUT NOT WIDELY SUPPORTED
+'\u2208',  // ∈ ELEMENT OF               CORRECT - BUT NOT WIDELY SUPPORTED
+'\u2229',  // ∩ INTERSECTION
+'\u2261',  // ≡ IDENTICAL TO
+'\u00B1',  // ± PLUS-MINUS SIGN
+'\u2265',  // ≥ GREATER-THAN OR EQUAL TO
+'\u2264',  // ≤ LESS-THAN OR EQUAL TO
+'\u2320',  // ⌠ TOP HALF INTEGRAL
+'\u2321',  // ⌡ BOTTOM HALF INTEGRAL
+'\u00F7',  // ÷ DIVISION SIGN
+'\u2248',  // ≈ ALMOST EQUAL TO
+'\u00B0',  // ° DEGREE SIGN
+'\u2219',  // ∙ BULLET OPERATOR          CORRECT
+'\u22C5',  // ⋅ DOT OPERATOR             CORRECT
+'\u221A',  // √ SQUARE ROOT
+'\u207F',  // ⁿ SUPERSCRIPT LATIN SMALL LETTER N
+'\u00B2',  // ² SUPERSCRIPT TWO
+'\u220E',  // ∎ END OF PROOF             CORRECT
+'\u00A0',  //   NO-BREAK SPACE
+];
+}
 
 init();
 </script>
