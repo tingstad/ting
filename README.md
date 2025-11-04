@@ -1,5 +1,17 @@
 # ting.st
 
+## ZIP Extractor
+
+https://www.ting.st/zip-extractor.html
+
+## Terminal colors
+
+https://www.ting.st/term-colors.html
+
+## Notepadlet
+
+https://www.ting.st/notepadlet.html
+
 ## data-url-display
 
 http://i.ting.st/url.html#data:text/plain,Hello
