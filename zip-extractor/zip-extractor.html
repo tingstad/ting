@@ -154,7 +154,7 @@ async function load(url, container) {
         throw new Error("No Content-Length found");
     }
 
-    const endOfCentralDir = await getEndOfCentralDirectory(url, length);
+    const { endOfCentralDir } = await getEndOfCentralDirectory(url, length);
 
     const centralDirCount= endOfCentralDir.getUint16( 8, littleEndian);
     const centralDirSize = endOfCentralDir.getUint32(12, littleEndian);
@@ -505,7 +505,9 @@ async function getEndOfCentralDirectory(url, contentLength) {
         throw new Error("End of central directory not found");
         // TODO: expand search
 
-    return new DataView(buffer, idx);
+    return {
+        endOfCentralDir: new DataView(buffer, idx),
+    }
 }
 
 const decodeIBM437 = newIBM437decoder();
