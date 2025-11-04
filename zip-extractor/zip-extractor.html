@@ -161,13 +161,21 @@ async function load(url, container) {
     const centralDirSize = endOfCentralDir.getUint32(12, littleEndian);
     const centralDirOffs = endOfCentralDir.getUint32(16, littleEndian);
 
-    let resp = await fetch(url, { headers: {
-        "Range": `bytes=${centralDirOffs}-${centralDirOffs+centralDirSize}`
-    }});
-    if (!resp.ok) {
-        throw new Error("HTTP error: " + resp.status);
+    let buffer;
+    if (!result.response.headers.has('content-range') &&
+        (result.response.headers.get('content-length') || 0) > centralDirOffs)
+    {
+        buffer = result.buffer.slice(
+            centralDirOffs, centralDirOffs + centralDirSize);
+    } else {
+        let resp = await fetch(url, { headers: {
+            "Range": `bytes=${centralDirOffs}-${centralDirOffs+centralDirSize}`
+        }});
+        if (!resp.ok) {
+            throw new Error("HTTP error: " + resp.status);
+        }
+        buffer = await resp.arrayBuffer();
     }
-    let buffer = await resp.arrayBuffer();
 
     const centralDirHeaders = getCentralDirectoryHeaders(buffer, centralDirCount);
 
@@ -510,6 +518,7 @@ async function getEndOfCentralDirectory(url, contentLength) {
     return {
         endOfCentralDir: new DataView(buffer, idx),
         response: resp,
+        buffer: buffer,
     }
 }
 
