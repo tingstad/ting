@@ -161,10 +161,13 @@ async function load(url, container) {
     const centralDirSize = endOfCentralDir.getUint32(12, littleEndian);
     const centralDirOffs = endOfCentralDir.getUint32(16, littleEndian);
 
+    // Maybe we got the whole file if Range is not supported
+    const hasAllData = !result.response.headers.has('content-range')
+        && (result.response.headers.get('content-length') || 0)
+            > centralDirOffs + centralDirSize;
+
     let buffer;
-    if (!result.response.headers.has('content-range') &&
-        (result.response.headers.get('content-length') || 0) > centralDirOffs)
-    {
+    if (hasAllData) {
         buffer = result.buffer.slice(
             centralDirOffs, centralDirOffs + centralDirSize);
     } else {
@@ -178,6 +181,20 @@ async function load(url, container) {
     }
 
     const centralDirHeaders = getCentralDirectoryHeaders(buffer, centralDirCount);
+
+    let fetcher = async (start, end) => {
+        let resp = await fetch(url, {
+            headers: { "Range": `bytes=${start}-${end}` }
+        });
+        if (!resp.ok) {
+            throw new Error("HTTP error: " + resp.status);
+        }
+        return await resp.arrayBuffer();
+    };
+    if (hasAllData) {
+        fetcher = async (start, end) =>
+            result.buffer.slice(start, end);
+    }
 
     const table = el('table',
         el('tr',
@@ -218,7 +235,7 @@ async function load(url, container) {
                         e.target.replaceWith(span);
                         const entry = centralDirHeaders
                             .filter((it) => it.filename == header.filename)[0];
-                        getEntry(url, entry, length)
+                        getEntry(fetcher, entry, length)
                             .then((blob) => {
                                 span.replaceWith(
                                     el('a', '💾', { "target": "_blank",
@@ -239,7 +256,7 @@ async function load(url, container) {
     });
 }
 
-async function getEntry(url, entry, contentLength) {
+async function getEntry(fetcher, entry, contentLength) {
    /*
    4.3.7  Local file header:
 
@@ -268,13 +285,7 @@ async function getEntry(url, entry, contentLength) {
     const end = Math.min(contentLength - 1,
         start + localHeaderLength + entry.sizeCompressed);
 
-    let resp = await fetch(url, {
-        headers: { "Range": `bytes=${start}-${end}` }
-    });
-    if (!resp.ok) {
-        throw new Error("HTTP error: " + resp.status);
-    }
-    let buffer = await resp.arrayBuffer();
+    let buffer = await fetcher(start, end);
     let data = new DataView(buffer);
 
     const generalPurpFlag = data.getUint16(8,  littleEndian);
