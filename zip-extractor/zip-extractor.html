@@ -166,22 +166,6 @@ async function load(url, container) {
         && (result.response.headers.get('content-length') || 0)
             > centralDirOffs + centralDirSize;
 
-    let buffer;
-    if (hasAllData) {
-        buffer = result.buffer.slice(
-            centralDirOffs, centralDirOffs + centralDirSize);
-    } else {
-        let resp = await fetch(url, { headers: {
-            "Range": `bytes=${centralDirOffs}-${centralDirOffs+centralDirSize}`
-        }});
-        if (!resp.ok) {
-            throw new Error("HTTP error: " + resp.status);
-        }
-        buffer = await resp.arrayBuffer();
-    }
-
-    const centralDirHeaders = getCentralDirectoryHeaders(buffer, centralDirCount);
-
     let fetcher = async (start, end) => {
         let resp = await fetch(url, {
             headers: { "Range": `bytes=${start}-${end}` }
@@ -191,10 +175,12 @@ async function load(url, container) {
         }
         return await resp.arrayBuffer();
     };
-    if (hasAllData) {
-        fetcher = async (start, end) =>
-            result.buffer.slice(start, end);
-    }
+    if (hasAllData)
+        fetcher = async (start, end) => result.buffer.slice(start, end);
+
+    const buffer = await fetcher(centralDirOffs, centralDirOffs + centralDirSize);
+
+    const centralDirHeaders = getCentralDirectoryHeaders(buffer, centralDirCount);
 
     const table = el('table',
         el('tr',
