@@ -280,15 +280,9 @@ async function getEntry(fetcher, entry, contentLength) {
     const filenameLength  = data.getUint16(26, littleEndian);
     const extraFldLength  = data.getUint16(28, littleEndian);
 
-    const UTF8 = 0x0800; // 1000 0000 0000
-
-    const isUTF8 = (generalPurpFlag & UTF8);
-
     const filenameBuffer = buffer.slice(30, 30 + filenameLength);
 
-    let filename = isUTF8
-        ? new TextDecoder("utf-8").decode(filenameBuffer)
-        : decodeIBM437(new Uint8Array(filenameBuffer));
+    const filename = decodeFilename(generalPurpFlag, filenameBuffer);
 
     localHeaderLength = 30
         + filenameLength
@@ -461,22 +455,9 @@ function getCentralDirectoryHeaders(buffer, count) {
         let fileCmntLen = centralDir.getUint16(off + 32, littleEndian);
         let offsetLocal = centralDir.getUint32(off + 42, littleEndian);
 
-/*
-D.1 The ZIP format has historically supported only the original IBM PC character
-encoding set, commonly referred to as IBM Code Page 437.
-
-D.2 If general purpose bit 11 is unset, the file name and comment SHOULD conform
-to the original ZIP character encoding.  */
-
-        const UTF8 = 0x0800; // 1000 0000 0000
-
-        const isUTF8 = (generalPurp & UTF8);
-
         const filenameBuffer = buffer.slice(off + 46, off + 46 + filenameLen);
 
-        let filename = isUTF8
-            ? new TextDecoder("utf-8").decode(filenameBuffer)
-            : decodeIBM437(new Uint8Array(filenameBuffer));
+        const filename = decodeFilename(generalPurp, filenameBuffer);
 
         headers.push({
             filename: filename,
@@ -519,6 +500,28 @@ async function getEndOfCentralDirectory(url, contentLength) {
         response: resp,
         buffer: buffer,
     }
+}
+
+function decodeFilename(generalPurposeBitFlag, filenameBuffer) {
+/*
+D.1 The ZIP format has historically supported only the original IBM PC character
+encoding set, commonly referred to as IBM Code Page 437.
+
+D.2 If general purpose bit 11 is unset, the file name and comment SHOULD conform
+to the original ZIP character encoding.  If general purpose bit 11 is set, the
+filename and comment MUST support The Unicode Standard,
+*/
+
+        const UTF8 = 0x0800; // 1000 0000 0000
+
+        const isUTF8 = (generalPurposeBitFlag & UTF8);
+
+        // Even though the spec says IBM CP 437, others may be used in practice
+        // We assume UTF-8 or IBM CP 437 for now
+        // TODO: support/detect others?
+        return isUTF8
+            ? new TextDecoder("utf-8").decode(filenameBuffer)
+            : decodeIBM437(new Uint8Array(filenameBuffer));
 }
 
 const decodeIBM437 = newIBM437decoder();
