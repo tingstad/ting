@@ -150,7 +150,7 @@ async function load(url, container) {
     container.appendChild(spinner);
 
     const length = await getContentLength(url);
-    if (!length) {
+    if (!length && !byId('force').value) {
         throw new Error("No Content-Length found");
     }
 
@@ -163,8 +163,7 @@ async function load(url, container) {
 
     // Maybe we got the whole file if Range is not supported
     const hasAllData = !result.response.headers.has('content-range')
-        && (result.response.headers.get('content-length') || 0)
-            > centralDirOffs + centralDirSize;
+        && result.buffer.byteLength > centralDirOffs + centralDirSize;
 
     let fetcher = async (start, end) => {
         let resp = await fetch(url, {
@@ -369,8 +368,9 @@ async function getContentLength(url) {
 
     const length = resp.headers.get("content-length");
     if (length === null) {
-        // TODO: smart scan from top using Range if !isForced (accept-ranges ok)
+        if (isForced) return 0;
         throw new Error("Content-Length header not found");
+        // TODO: smart scan from top using Range if !isForced (accept-ranges ok)
     }
 
     return parseInt(length, 10);
@@ -497,9 +497,11 @@ to the original ZIP character encoding.  */
 async function getEndOfCentralDirectory(url, contentLength) {
     let start = contentLength - 1024;
     let end = contentLength - 1;
-    let resp = await fetch(url, {
-        headers: { "Range": `bytes=${start}-${end}` }
-    });
+    let headers = {};
+    if (contentLength) { // can be 0 if force=true
+        headers.Range = `bytes=${start}-${end}`;
+    }
+    let resp = await fetch(url, { headers });
     if (!resp.ok) {
         throw new Error("HTTP error: " + resp.status);
     }
