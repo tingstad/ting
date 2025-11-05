@@ -446,14 +446,14 @@ function getCentralDirectoryHeaders(buffer, count) {
     let off = 0;
     for (let i = 0; i < count; i++) {
 
-        let generalPurp = centralDir.getUint16(off +  8, littleEndian);
-        let compression = centralDir.getUint16(off + 10, littleEndian);
-        let sizeComprsd = centralDir.getUint32(off + 20, littleEndian);
-        let sizeUncompr = centralDir.getUint32(off + 24, littleEndian);
-        let filenameLen = centralDir.getUint16(off + 28, littleEndian);
-        let extraFldLen = centralDir.getUint16(off + 30, littleEndian);
-        let fileCmntLen = centralDir.getUint16(off + 32, littleEndian);
-        let offsetLocal = centralDir.getUint32(off + 42, littleEndian);
+        const generalPurp = centralDir.getUint16(off +  8, littleEndian);
+        const compression = centralDir.getUint16(off + 10, littleEndian);
+        const sizeComprsd = centralDir.getUint32(off + 20, littleEndian);
+        const sizeUncompr = centralDir.getUint32(off + 24, littleEndian);
+        const filenameLen = centralDir.getUint16(off + 28, littleEndian);
+        const extraFldLen = centralDir.getUint16(off + 30, littleEndian);
+        const fileCmntLen = centralDir.getUint16(off + 32, littleEndian);
+        const offsetLocal = centralDir.getUint32(off + 42, littleEndian);
 
         const filenameBuffer = buffer.slice(off + 46, off + 46 + filenameLen);
 
