@@ -35,7 +35,11 @@ assert.deepEqual(
         "offsetLocalHeader": 0,
         "filenameLength": 12,
         "extraFieldLength": 24,
+        "lastModifiedDate": "2025-11-03",
     }]);
+
+assert.equal(parseDate(23395), '2025-11-03'); // 0x63 0x5b => 0x5b63
+assert.equal(parseDate(0x4271), '2013-03-17');
 
 assert.equal(decodeIBM437([ 0x61 ]), 'a');
 assert.equal(decodeIBM437([ 0x41, 0x42, 0x43 ]), 'ABC');

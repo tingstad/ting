@@ -191,6 +191,7 @@ async function load(url, container) {
         el('tr',
             el('th', 'Filename'),
             el('th', 'Method'),
+            el('th', 'Date'),
             el('th', 'Size'),
             el('th', 'Length'),
             el('th', 'Cmpr'),
@@ -205,6 +206,7 @@ async function load(url, container) {
             el('tr',
                 el('td', header.filename),
                 el('td', header.compression),
+                el('td', header.lastModifiedDate),
                 el('td', human(header.sizeCompressed)),
                 el('td', human(header.sizeUncompressed)),
                 el('td', `${ratio}%`),
@@ -448,6 +450,7 @@ function getCentralDirectoryHeaders(buffer, count) {
 
         const generalPurp = centralDir.getUint16(off +  8, littleEndian);
         const compression = centralDir.getUint16(off + 10, littleEndian);
+        const lastModDate = centralDir.getUint16(off + 14, littleEndian);
         const sizeComprsd = centralDir.getUint32(off + 20, littleEndian);
         const sizeUncompr = centralDir.getUint32(off + 24, littleEndian);
         const filenameLen = centralDir.getUint16(off + 28, littleEndian);
@@ -467,6 +470,7 @@ function getCentralDirectoryHeaders(buffer, count) {
             offsetLocalHeader: offsetLocal,
             filenameLength: filenameLen,
             extraFieldLength: extraFldLen,
+            lastModifiedDate: parseDate(lastModDate),
         });
 
         off += 46 + filenameLen + extraFldLen + fileCmntLen;
@@ -500,6 +504,26 @@ async function getEndOfCentralDirectory(url, contentLength) {
         response: resp,
         buffer: buffer,
     }
+}
+
+function parseDate(date) {
+    /*
+    Bits    Description
+    0-4     Day of the month (1–31)
+    5-8     Month (1 = January, 2 = February, and so on)
+    9-15    Year offset from 1980 (add 1980 to get actual year)
+    https://learn.microsoft.com/nb-no/windows/win32/api/winbase/nf-winbase-dosdatetimetofiletime
+    */
+
+    const day  = (date       & 0x1F); // 0x1F = 1 1111
+    const mon  = (date >> 5) & 0x0F;  // 0x0F = 1111
+    const yrs  = (date >> 9) & 0x7F;  // 0x7F = 0111 1111
+
+    const yyyy = 1980 + yrs;
+    const mm   = String(mon).padStart(2, "0");
+    const dd   = String(day).padStart(2, "0");
+
+    return `${yyyy}-${mm}-${dd}`;
 }
 
 function decodeFilename(generalPurposeBitFlag, filenameBuffer) {
