@@ -183,12 +183,6 @@ async function load(url, container) {
 
     const table = el('table',
         el('tr',
-            el('th', { "colspan": "6", "style": "text-align: left" },
-                el('a', { "href": url, "target": "_blank" }, url),
-                    el('span', { "style": "font-weight: 400" },
-                        " (" + human(length) + ")")
-            )),
-        el('tr',
             el('th', 'Filename'),
             el('th', 'Method'),
             el('th', 'Date'),
@@ -239,8 +233,18 @@ async function load(url, container) {
                 ),
             )
         );
-        spinner.replaceWith(table);
     });
+    spinner.replaceWith(
+        el('details', { "open": "true" },
+            el('summary',
+                el('a', { "href": url, "target": "_blank",
+                    "style": "font-weight: 600" }, url),
+                el('span', { "style": "font-weight: 400" },
+                    " (" + human(length) + ")"),
+            ),
+            table,
+        )
+    );
 }
 
 async function getEntry(fetcher, entry, contentLength) {
