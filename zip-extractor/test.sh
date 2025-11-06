@@ -24,9 +24,10 @@ const decodeIBM437 = newIBM437decoder();
 
 const centralDirPK0102 = [0x50, 0x4b, 0x01, 0x02];
 
-assert.deepEqual(
-    getCentralDirectoryHeaders(new Uint8Array(
-        file.slice(indexOf(file, centralDirPK0102))).buffer, 1)
+let headers = getCentralDirectoryHeaders(new Uint8Array(
+        file.slice(indexOf(file, centralDirPK0102))).buffer, 1);
+
+assert.deepEqual(headers
     , [{
         "filename": 'greeting.txt',
         "compression": 0,
@@ -37,6 +38,11 @@ assert.deepEqual(
         "extraFieldLength": 24,
         "lastModifiedDate": "2025-11-03",
     }]);
+
+let fetcher = (start, end) => new Uint8Array(file.slice(start, end)).buffer;
+let blob = await getEntry(fetcher, headers[0], file.length);
+assert.equal(blob.type, 'text/plain;charset=utf-8');
+assert.equal(await blob.text(), 'Hello\n');
 
 assert.equal(parseDate(23395), '2025-11-03'); // 0x63 0x5b => 0x5b63
 assert.equal(parseDate(0x4271), '2013-03-17');

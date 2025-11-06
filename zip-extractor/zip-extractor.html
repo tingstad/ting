@@ -175,7 +175,7 @@ async function load(url, container) {
         return await resp.arrayBuffer();
     };
     if (hasAllData)
-        fetcher = async (start, end) => result.buffer.slice(start, end);
+        fetcher = (start, end) => result.buffer.slice(start, end);
 
     const buffer = await fetcher(centralDirOffs, centralDirOffs + centralDirSize);
 
