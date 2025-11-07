@@ -47,6 +47,9 @@ assert.equal(await blob.text(), 'Hello\n');
 assert.equal(parseDate(23395), '2025-11-03'); // 0x63 0x5b => 0x5b63
 assert.equal(parseDate(0x4271), '2013-03-17');
 
+assert.equal(methodDescription(0), '0 - The file is stored (no compression)');
+assert.equal(methodDescription(8), '8 - The file is Deflated');
+
 assert.equal(decodeIBM437([ 0x61 ]), 'a');
 assert.equal(decodeIBM437([ 0x41, 0x42, 0x43 ]), 'ABC');
 assert.equal(decodeIBM437([ 0x01, 0x02, 0x03, 0x04, 0x05, 0x06 ]), '☺☻♥♦♣♠');

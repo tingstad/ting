@@ -205,7 +205,8 @@ async function load(url, container) {
         table.appendChild(
             el('tr',
                 el('td', header.filename),
-                el('td', header.compression),
+                el('td', header.compression,
+                    { "title": methodDescription(header.compression) }),
                 el('td', header.lastModifiedDate),
                 el('td', human(header.sizeCompressed),
                     { "title": header.sizeCompressed }),
@@ -581,6 +582,50 @@ function decoder(table) {
     return function(bytes) {
         return Array.from(bytes, b => table[b]).join('');
     }
+}
+
+function methodDescription(method) {
+    //pkware.cachefly.net/webdocs/APPNOTE/APPNOTE-6.3.9.TXT
+    const spec = `4.4.5 compression method: (2 bytes)
+
+        0 - The file is stored (no compression)
+        1 - The file is Shrunk
+        2 - The file is Reduced with compression factor 1
+        3 - The file is Reduced with compression factor 2
+        4 - The file is Reduced with compression factor 3
+        5 - The file is Reduced with compression factor 4
+        6 - The file is Imploded
+        7 - Reserved for Tokenizing compression algorithm
+        8 - The file is Deflated
+        9 - Enhanced Deflating using Deflate64(tm)
+       10 - PKWARE Data Compression Library Imploding (old IBM TERSE)
+       11 - Reserved by PKWARE
+       12 - File is compressed using BZIP2 algorithm
+       13 - Reserved by PKWARE
+       14 - LZMA
+       15 - Reserved by PKWARE
+       16 - IBM z/OS CMPSC Compression
+       17 - Reserved by PKWARE
+       18 - File is compressed using IBM TERSE (new)
+       19 - IBM LZ77 z Architecture 
+       20 - deprecated (use method 93 for zstd)
+       93 - Zstandard (zstd) Compression 
+       94 - MP3 Compression 
+       95 - XZ Compression 
+       96 - JPEG variant
+       97 - WavPack compressed data
+       98 - PPMd version I, Rev 1
+       99 - AE-x encryption marker (see APPENDIX E)
+
+       4.4.5.1 Methods 1-6 are legacy algorithms and are no longer
+       recommended for use when compressing files.`;
+
+    for (let line of spec.split('\n')) {
+        let s = line.trim();
+        if (s.startsWith(`${method} - `))
+            return s;
+    }
+    return '';
 }
 
 function indexOf(buffer, pattern) {
