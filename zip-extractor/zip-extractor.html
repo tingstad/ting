@@ -204,7 +204,8 @@ async function load(url, container) {
                 header.sizeCompressed * 100 / header.sizeUncompressed);
         table.appendChild(
             el('tr',
-                el('td', header.filename),
+                el('td', header.filename,
+                    {...(header.fileComment && {"title": header.fileComment})}),
                 el('td', header.compression,
                     { "title": methodDescription(header.compression) }),
                 el('td', header.lastModifiedDate),
@@ -479,6 +480,11 @@ function getCentralDirectoryHeaders(buffer, count) {
 
         const filename = decodeFilename(generalPurp, filenameBuffer);
 
+        const fileComment = fileCmntLen ? decodeFilename(generalPurp,
+            buffer.slice(
+                off + 46 + filenameLen + extraFldLen,
+                off + 46 + filenameLen + extraFldLen + fileCmntLen)) : '';
+
         headers.push({
             filename: filename,
             compression: compression,
@@ -488,6 +494,7 @@ function getCentralDirectoryHeaders(buffer, count) {
             filenameLength: filenameLen,
             extraFieldLength: extraFldLen,
             lastModifiedDate: parseDate(lastModDate),
+            fileComment: fileComment,
         });
 
         off += 46 + filenameLen + extraFldLen + fileCmntLen;

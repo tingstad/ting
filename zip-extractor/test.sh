@@ -37,6 +37,7 @@ assert.deepEqual(headers
         "filenameLength": 12,
         "extraFieldLength": 24,
         "lastModifiedDate": "2025-11-03",
+        "fileComment": "",
     }]);
 
 let fetcher = (start, end) => new Uint8Array(file.slice(start, end)).buffer;
