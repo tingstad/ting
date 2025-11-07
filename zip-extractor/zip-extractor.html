@@ -526,8 +526,6 @@ function skipDirectories(it, i, headers) {
     return !(
         it.sizeUncompressed === 0
         && it.filename.endsWith('/')
-        && i < headers.length - 1
-        && headers[i+1].filename.startsWith(it.filename)
     );
 }
 
