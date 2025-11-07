@@ -179,7 +179,8 @@ async function load(url, container) {
 
     const buffer = await fetcher(centralDirOffs, centralDirOffs + centralDirSize);
 
-    const centralDirHeaders = getCentralDirectoryHeaders(buffer, centralDirCount);
+    const centralDirHeaders = getCentralDirectoryHeaders(buffer, centralDirCount)
+        .filter(skipDirectories);
 
     const table = el('table',
         el('tr',
@@ -508,6 +509,15 @@ async function getEndOfCentralDirectory(url, contentLength) {
         response: resp,
         buffer: buffer,
     }
+}
+
+function skipDirectories(it, i, headers) {
+    return !(
+        it.sizeUncompressed === 0
+        && it.filename.endsWith('/')
+        && i < headers.length - 1
+        && headers[i+1].filename.startsWith(it.filename)
+    );
 }
 
 function parseDate(date) {
