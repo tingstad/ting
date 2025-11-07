@@ -221,6 +221,7 @@ async function load(url, container) {
                             .then((blob) => {
                                 span.replaceWith(
                                     el('a', '💾', { "target": "_blank",
+                                        "title": blob.type,
                                         "href": URL.createObjectURL(blob) })
                                 );
                             })
