@@ -73,6 +73,8 @@ assert.deepEqual(structure(['foo/bar/index.htm']),
     [{ name: 'foo', files: [{ name: 'bar', files: [{ name: 'index.htm' }] }]}]);
 
 assert.equal(human(0), '0 B');
+assert.equal(human(2), '2 B');
+assert.equal(human(20), '20 B');
 assert.equal(human(900), '900 B');
 assert.equal(human(1023), '1023 B');
 assert.equal(human(1024), '1.0 K');

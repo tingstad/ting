@@ -617,9 +617,9 @@ function lastIndexOf(buffer, pattern) {
 
 function human(n) {
     const bytes = Number(n);
-    if (bytes == 0) return "0 B";
     const k = 1024;
     const units = ["B", "K", "M", "G", "T", "P"];
+    if (bytes < k) return `${bytes} ${units[0]}`;
     const i = Math.floor(Math.log(bytes) / Math.log(k));
     const size = bytes / Math.pow(k, i);
     const rounded = size >= 10
