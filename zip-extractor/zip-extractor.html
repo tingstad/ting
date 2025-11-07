@@ -312,10 +312,12 @@ async function getEntry(fetcher, entry, contentLength) {
 
     let mimetype = mimeType(filename);
     if (mimetype.startsWith('text/')) {
-        let buffer = await blob.arrayBuffer();
-        let validUTF8 = true;
-        try { new TextDecoder("utf-8", { fatal: true }).decode(buffer);
-        } catch { validUTF8 = false; }
+        const bytes = await blob.bytes();
+        let validUTF8 = bytes.indexOf(0x00) === -1;
+        if (validUTF8) {
+            try { new TextDecoder("utf-8", { fatal: true }).decode(bytes);
+            } catch { validUTF8 = false; }
+        }
         mimetype = `${mimetype};charset=${validUTF8 ? "utf-8" : "iso-8859-1"}`;
     }
 
