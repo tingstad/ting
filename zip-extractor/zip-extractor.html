@@ -160,6 +160,11 @@ async function load(url, container) {
     const centralDirCount= endOfCentralDir.getUint16( 8, littleEndian);
     const centralDirSize = endOfCentralDir.getUint32(12, littleEndian);
     const centralDirOffs = endOfCentralDir.getUint32(16, littleEndian);
+    const fileCommentLen = endOfCentralDir.getUint16(20, littleEndian);
+    const fileComment    = fileCommentLen == 0 ? "" :
+        new TextDecoder().decode(result.buffer.slice(
+            endOfCentralDir.byteOffset + 22,
+            endOfCentralDir.byteOffset + 22 + fileCommentLen));
 
     // Maybe we got the whole file if Range is not supported
     const hasAllData = !result.response.headers.has('content-range')
@@ -246,6 +251,7 @@ async function load(url, container) {
                 el('span', { "style": "font-weight: 400" },
                     " (" + human(length) + ")"),
             ),
+            (fileComment ? el('pre', fileComment) : ""),
             table,
         )
     );
