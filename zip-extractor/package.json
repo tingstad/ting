@@ -1,6 +1,6 @@
 {
   "name": "zip-extractor",
-  "version": "1.0.3",
+  "version": "1.0.4",
   "description": "ZIP Extractor",
   "bin": {
     "zip-extractor": "zip-extractor.js"
