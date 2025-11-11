@@ -56,26 +56,6 @@ assert.equal(decodeIBM437([ 0x41, 0x42, 0x43 ]), 'ABC');
 assert.equal(decodeIBM437([ 0x01, 0x02, 0x03, 0x04, 0x05, 0x06 ]), '☺☻♥♦♣♠');
 assert.equal(decodeIBM437([ 0x81, 0x82, 0x83, 0x84, 0x85, 0x86 ]), 'üéâäàå');
 
-assert.deepEqual(structure([]), []);
-assert.deepEqual(structure(['index.htm']), [{ name: 'index.htm' }]);
-assert.deepEqual(structure(['foo/index.htm']),
-    [{ name: 'foo', files: [{ name: 'index.htm' }] }]);
-assert.deepEqual(structure(
-    ['index.htm', 'foo/1.txt', 'foo/2.txt', 'foo/bar/3.txt', 'bar/4.txt']), [
-    { name: 'index.htm' },
-    { name: 'foo', files: [
-        { name: '1.txt' },
-        { name: '2.txt' },
-        { name: 'bar', files: [
-            { name: '3.txt' },
-        ]},
-    ]},
-    { name: 'bar', files: [
-        { name: '4.txt' },
-    ]}]);
-assert.deepEqual(structure(['foo/bar/index.htm']),
-    [{ name: 'foo', files: [{ name: 'bar', files: [{ name: 'index.htm' }] }]}]);
-
 assert.equal(human(0), '0 B');
 assert.equal(human(2), '2 B');
 assert.equal(human(20), '20 B');

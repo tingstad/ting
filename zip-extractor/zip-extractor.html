@@ -16,7 +16,7 @@
     href="https://github.com/tingstad/ting/tree/master/zip-extractor"
     >ⓘ</a></h1>
 
-<div id="error"a style="background-color: #FFCCCB;"></div>
+<div id="error" style="background-color: #FFCCCB;"></div>
 
 <form id="form">
     <input type="text" required name="url" id="url" size="70"
@@ -180,7 +180,7 @@ async function load(url, container) {
         return await resp.arrayBuffer();
     };
     if (hasAllData)
-        fetcher = (start, end) => result.buffer.slice(start, end);
+        fetcher = (start, end) => Promise.resolve(result.buffer.slice(start, end));
 
     const buffer = await fetcher(centralDirOffs, centralDirOffs + centralDirSize);
 
@@ -225,7 +225,7 @@ async function load(url, container) {
                                 }, '⌛');
                         e.target.replaceWith(span);
                         const entry = centralDirHeaders
-                            .filter((it) => it.filename == header.filename)[0];
+                            .filter((it) => it.filename === header.filename)[0];
                         getEntry(fetcher, entry, length)
                             .then((blob) => {
                                 span.replaceWith(
