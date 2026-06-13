@@ -1,0 +1,214 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="author" content="Richard H. Tingstad">
+  <title>Font experiments</title>
+  <style>
+  @font-face {
+    font-family: "Experiment";
+    src: url("Demo_IBM_VGA_9x16.ttf") format("truetype");
+    font-display: block;
+  }
+  :root {
+    --bg: #fff; --fg: #111; color-scheme: light;
+    font-palette: light;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #111; --fg: #eee; color-scheme: dark;
+      font-palette: dark;
+    }
+  }
+  :root[data-theme="light"] {
+    --bg: #fff; --fg: #111; color-scheme: light;
+    font-palette: light;
+  }
+  :root[data-theme="dark"] {
+    --bg: #111; --fg: #eee; color-scheme: dark;
+    font-palette: dark;
+  }
+  @font-palette-values --solarized {
+    font-family: "Experiment";
+    base-palette: 1;
+    override-colors:
+      0  #073642, /* black */
+      1  #dc322f, /* red */
+      2  #859900, /* green */
+      3  #b58900, /* yellow */
+      4  #268bd2, /* blue */
+      5  #d33682, /* magenta */
+      6  #2aa198, /* cyan */
+      7  #93a1a1; /* white */
+  }
+  body {
+    margin: 2rem; max-width: 800px;
+  }
+  body {
+    font-family: "Experiment", monospace;
+    background: var(--bg); color: var(--fg);
+  }
+  textarea, select, input { font: inherit; color: inherit; background: inherit; }
+  textarea {
+    padding: 1rem; margin-top: 1rem;
+    resize: vertical; min-height: 4rem;
+    width: 100%; box-sizing: border-box;
+  }
+  table {
+    border-collapse: collapse;
+  }
+  td {
+    border-top: 1px solid #888;
+    padding: 0.2rem 0.5rem;
+  }
+  td:first-child {
+    border-right: 1px solid #888;
+    font-variant-ligatures: none;
+  }
+  p.showstyle::before {content: "<p style='" attr(style) "'>"}
+  p.showlang::before {content: "<p lang='" attr(lang) "'>"}
+  p.showstyle::after,p.showlang::after {content: "</p>"}
+  *::before,*::after { color: #888; }
+  p.showstyle,p.showlang,.pre { white-space: pre-wrap; }
+  </style>
+</head>
+<body>
+
+<h1>Font experiments</h1>
+<div id="control"></div>
+<section>
+
+<p>Fonts consist of <i>glyphs</i> (like 'A', '^', etc.)
+and rules about these:</p>
+
+<ul>
+  <li><em>cmap</em> table mapping from unicode code points to glyph</li>
+  <li><em>GSUB</em> glyph substitution for ligatures and similar</li>
+  <li>precise glyph positioning and more</li>
+</ul>
+
+<p>For example, we can substitute glyphs like:</p>
+
+<table style="margin-left: 2rem;">
+  <tr><td>~=</td><td>~= (≈)</td></tr>
+  <tr><td>>=</td><td>>= (≥)</td></tr>
+  <tr><td>-></td><td>-> (→)</td></tr>
+  <tr><td>:)</td><td>:) (☺)</td></tr>
+  <tr><td>&lt;3</td><td>&lt;3 (♥)</td></tr>
+  <tr><td>1/2</td><td>1/2 (½)</td></tr>
+</table>
+
+<p>I like the visual freedom while preserving text operations like copying,<br>
+  but the lack of transparency has some negative challenges:<p>
+
+<ol>
+  <li>Substituted glyphs often have other code points already:
+    <ul>
+      <li>Is "&lt;3" really "&lt;"+"3" or U+2665 ♥ Heart Suit?</li>
+    </ul>
+  </li>
+  <li>"Putin is worse than Trump"
+    <ul>
+      <li>↑ can we even trust the words of this sentence?</li>
+      <li>(Try copy-pasting or searching this page)</li>
+    </ul>
+  </li>
+</ol>
+
+<p>As already demonstrated, fonts can have built-in colors!</p>
+
+<p>I use them here to show substitutions made by the font.<br>
+Ligatures can be disabled! These two sentences are identical:</p>
+
+<p contenteditable="true" class="pre">    Example text with 1/2 and :) &lt;3</p>
+
+<p contenteditable="true" class="showstyle" style="font-variant-ligatures: none;">
+    Example text with 1/2 and :) &lt;3
+</p>
+<p>(font-variant-numeric has a separate setting for fractions,<br>
+  but I implemented 1/2 as a ligature here.)</p>
+
+<p>I thought it might be cool to detect ANSI escape codes to color the text:</p>
+
+<textarea spellcheck="false" rows="2">
+printf "\e[33mJob \e[36m${i}\e[33m status: \e[34mRunning\n"
+printf "\e[31mThe job failed!\e[m\n"</textarea>
+
+<p>And the color palette can be flexible! Try toggling dark mode.</p>
+
+<p contenteditable="true" class="pre">    \e[31mHello in red \e[32m and green!\e[m</p>
+<p contenteditable="true" class="showstyle" style="font-palette: --solarized;">
+    \e[31mHello in red \e[32m and green!\e[m
+</p>
+
+<label>
+  Language:
+  <select id="lang" disabled>
+    <option value="">(none)</option>
+    <option value="es">es — Spanish</option>
+    <option value="fr">fr — French</option>
+  </select>
+</label>
+<p id="say" class="showlang" contenteditable="true">
+    GREET!!!
+</p>
+
+<p>Lessons:</p>
+<ul>
+  <li>Fonts can substitute and display almost anything,<br>
+      depending on input text and language</li>
+  <ul>
+    <li>Glyph substitution is <em>not</em> a full programming language,<br>
+        but still quite powerful</li>
+      <li>Code points without glyphs in the font are off limits,<br>
+          like OS emojis e.g.</li>
+  </ul>
+  <li>Browsers seem to not always flush/redraw all text on changes</li>
+  <li>Some browsers ignore C0 control characters</li>
+</ul>
+
+<p>References:</p>
+<ol>
+  <li><a href="https://learn.microsoft.com/en-us/typography/opentype/spec/">
+    https://learn.microsoft.com/en-us/typography/opentype/spec/</a></li>
+  <li><a href="https://adobe-type-tools.github.io/afdko/OpenTypeFeatureFileSpecification.html">
+    https://adobe-type-tools.github.io/afdko/OpenTypeFeatureFileSpecification.html
+    </a></li>
+  <li><a href="https://simoncozens.github.io/fonts-and-layout/">
+    https://simoncozens.github.io/fonts-and-layout/</a></li>
+  <li><a href="https://blog.fontlab.com/2026/05/03/color-fonts-in-2026/">
+    https://blog.fontlab.com/2026/05/03/color-fonts-in-2026/</a></li>
+  <li><a href="https://pomax.github.io/CFF-glyphlet-fonts/">
+    https://pomax.github.io/CFF-glyphlet-fonts/</a></li>
+  <li><a href="https://aftertheflood.com/journal/the-worlds-first-code-free-sparkline-typeface/">
+    https://aftertheflood.com/journal/the-worlds-first-code-free-sparkline-typeface/</a></li>
+  <li><a href="https://blog.glyphdrawing.club/font-with-built-in-syntax-highlighting/">
+    https://blog.glyphdrawing.club/font-with-built-in-syntax-highlighting/</a></li>
+</ol>
+
+<p>I used <a href="https://int10h.org/oldschool-pc-fonts/">int10h.org IBM font</a> as base font.</p>
+
+</section>
+
+<script>
+  const dark = document.createElement("input");
+  dark.type = "checkbox";
+  dark.id = "dark";
+  const label = document.createElement("label");
+  label.appendChild(dark);
+  label.appendChild(document.createTextNode(" Dark mode"))
+  dark.checked = matchMedia("(prefers-color-scheme: dark)").matches;
+  dark.addEventListener("change", () => {
+    document.documentElement.dataset.theme = dark.checked ? "dark" : "light";
+  });
+  document.getElementById("control").appendChild(label);
+
+  const lang = document.getElementById("lang");
+  lang.addEventListener("change", () => {
+    document.getElementById("say").lang = lang.value;
+  });
+  lang.disabled = false;
+</script>
+</body>
+</html>
