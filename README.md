@@ -1,5 +1,9 @@
 # ting.st
 
+## Range ZIP: overlapping entries experiment
+
+https://www.ting.st/zip.html
+
 ## Font programming demo
 
 https://www.ting.st/font.html
