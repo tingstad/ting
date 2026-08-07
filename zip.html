@@ -45,34 +45,34 @@
 <p>Zip files are basically just some compressed data and
 metadata with byte offset pointers like so:</p>
 <pre>
-┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
-┃ PK\3\4 Local file header 1  ┃&lt;─╮
-┃   2344 bytes                ┃  │
-┃   chapter1.txt              ┃  │
-┃   [compressed data]         ┃  │
-┠─────────────────────────────┨  │
-┃ ...                         ┃  │
-┠─────────────────────────────┨  │
-┃ PK\3\4 Local file header 2  ┃&lt;─│─╮
-┃   3210 bytes                ┃  │ │
-┃   chapter2.txt              ┃  │ │
-┃   [compressed data]         ┃  │ │
-┠─────────────────────────────┨  │ │
-┃ ...                         ┃  │ │
-┠─────────────────────────────┨  │ │
-┃ PK\1\2 Central dir header 1 ┃&lt;─│─│─╮
-┃   2344 bytes                ┃  │ │ │
-┃   chapter1.txt offset───────╂──╯ │ │
-┃ PK\1\2 Central dir header 2 ┃    │ │
-┃   3210 bytes                ┃    │ │
-┃   chapter2.txt offset───────╂────╯ │
-┃ ...                         ┃      │
-┠─────────────────────────────┨      │
-┃ PK\5\6 End of central dir   ┃      │
-┃   Central dir entry count   ┃      │
-┃   Central dir size          ┃      │
-┃   Central dir offset────────╂──────╯
-┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛
++-----------------------------+
+| PK\3\4 Local file header 1  |&lt;-╮
+|   2344 bytes                |  |
+|   chapter1.txt              |  |
+|   [compressed data]         |  |
+|-----------------------------|  |
+| ...                         |  |
+|-----------------------------|  |
+| PK\3\4 Local file header 2  |&lt;-|-╮
+|   3210 bytes                |  | |
+|   chapter2.txt              |  | |
+|   [compressed data]         |  | |
+|-----------------------------|  | |
+| ...                         |  | |
+|-----------------------------|  | |
+| PK\1\2 Central dir header 1 |&lt;-|-|-╮
+|   2344 bytes                |  | | |
+|   chapter1.txt offset-------|--' | |
+| PK\1\2 Central dir header 2 |    | |
+|   3210 bytes                |    | |
+|   chapter2.txt offset-------|----' |
+| ...                         |      |
+|-----------------------------|      |
+| PK\5\6 End of central dir   |      |
+|   Central dir entry count   |      |
+|   Central dir size          |      |
+|   Central dir offset--------|------'
++-----------------------------+
 </pre>
 
 <p>Since arbitrary bytes can appear before or between these blocks,
@@ -127,7 +127,7 @@ Archive:  1-2.zip
   702945           386460  45% <span class="wide">                           </span>4 files
 </pre>
 
-<p>I included nested zip files here as well, for consistency and fun 😀.</p>
+<p>I included nested zip files here as well, for consistency and fun 😀</p>
 
 <p>Now, let's verify that the original file also works out of the box on
 Apple® MacOS 14:</p>
@@ -182,7 +182,7 @@ and not OS-internal features?
     <figcaption><em>Windows XP with no inappropriateness detected</em></figcaption>
 </figure>
 
-<p>I think we can conclude that the file is in fact NOT consistently inappropriate,
+<p>I think we can say that the file is in fact NOT consistently inappropriate,
 despite Apple's claims.
 </p>
 
