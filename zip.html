@@ -1,0 +1,388 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="author" content="Richard H. Tingstad">
+    <meta name="description" content="Constructing a ZIP archive whose entries reference overlapping byte ranges of the same compressed data, so HTTP Range requests can slice out valid sub-archives.">
+    <meta property="og:type" content="article">
+    <meta property="og:title" content="Range Zip (a.k.a. Inappropriate Zip)">
+    <meta property="og:description" content="Constructing a ZIP archive whose entries reference overlapping byte ranges of the same compressed data, so HTTP Range requests can slice out valid sub-archives.">
+    <meta property="og:url" content="https://www.ting.st/zip.html">
+    <meta property="og:image" content="https://www.ting.st/zip/Windows-XP.png">
+    <title>Range Zip</title>
+    <style>
+        body {
+            background-color: #fdf6e3;
+            margin: 1rem 0;
+            color: #1a1a1a;
+        }
+        body > * {
+            max-width: 50rem;
+            margin-left:  auto;
+            margin-right: auto;
+            padding-left:  0.2rem;
+            padding-right: 0.2rem;
+        }
+        pre {
+            overflow-x: auto;
+        }
+        img {
+            max-width: 100%;
+            height: auto;
+        }
+        @media (max-width: 34em) {
+            .wide { display: none; }
+        }
+    </style>
+</head>
+<body>
+
+<h1>Range Zip (a.k.a. Inappropriate Zip)</h1>
+
+<h2>Introduction</h2>
+
+<p>Zip files are basically just some compressed data and
+metadata with byte offset pointers like so:</p>
+<pre>
+┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
+┃ PK\3\4 Local file header 1  ┃&lt;─╮
+┃   2344 bytes                ┃  │
+┃   chapter1.txt              ┃  │
+┃   [compressed data]         ┃  │
+┠─────────────────────────────┨  │
+┃ ...                         ┃  │
+┠─────────────────────────────┨  │
+┃ PK\3\4 Local file header 2  ┃&lt;─│─╮
+┃   3210 bytes                ┃  │ │
+┃   chapter2.txt              ┃  │ │
+┃   [compressed data]         ┃  │ │
+┠─────────────────────────────┨  │ │
+┃ ...                         ┃  │ │
+┠─────────────────────────────┨  │ │
+┃ PK\1\2 Central dir header 1 ┃&lt;─│─│─╮
+┃   2344 bytes                ┃  │ │ │
+┃   chapter1.txt offset───────╂──╯ │ │
+┃ PK\1\2 Central dir header 2 ┃    │ │
+┃   3210 bytes                ┃    │ │
+┃   chapter2.txt offset───────╂────╯ │
+┃ ...                         ┃      │
+┠─────────────────────────────┨      │
+┃ PK\5\6 End of central dir   ┃      │
+┃   Central dir entry count   ┃      │
+┃   Central dir size          ┃      │
+┃   Central dir offset────────╂──────╯
+┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛
+</pre>
+
+<p>Since arbitrary bytes can appear before or between these blocks,
+I wondered if I could construct a file archiving different
+ranges of the same files.
+</p>
+
+<h2>Experimentation</h2>
+
+<p>
+So I tried, and it looks like it works:</p>
+
+<pre>$ unzip -v tale.zip
+Archive:  tale.zip
+ Length   Method    Size  Cmpr <span class="wide">   Date    Time   CRC-32   </span>Name
+--------  ------  ------- ---- <span class="wide">---------- ----- --------  </span>----
+  101302  Defl:N    39251  61% <span class="wide">05-01-2026 11:29 e8b8bf09  </span>book-1.txt
+  408295  Defl:N   153861  62% <span class="wide">05-01-2026 11:29 2cb01fd8  </span>book-2.txt
+  277832  Defl:N   105162  62% <span class="wide">05-01-2026 11:29 a36bd9b7  </span>book-3.txt
+   39369  Stored    39369   0% <span class="wide">05-01-2026 11:29 794de1cf  </span>book-1.zip
+  153979  Stored   153979   0% <span class="wide">05-01-2026 11:29 467dcf94  </span>book-2.zip
+  105280  Stored   105280   0% <span class="wide">05-01-2026 11:29 64653396  </span>book-3.zip
+  193716  Stored   193716   0% <span class="wide">05-01-2026 11:29 d976981e  </span>book-1-2.zip
+  259831  Stored   259831   0% <span class="wide">05-01-2026 11:29 5283cd8d  </span>book-2-3.zip
+--------          -------  --- <span class="wide">                           </span>-------
+ 1539604          1050449  32% <span class="wide">                           </span>8 files
+</pre>
+
+<pre>$ wc -c &lt; tale.zip
+299798
+</pre>
+
+<p>Notice that 299798 ≪ 1050449; each <code>book-N.txt</code> is compressed and
+stored only once,
+but is referenced by 2-3 archive entries.
+</p>
+
+<p>This is pretty cool, you can allow your friends and visitors to download the
+parts they want:</p>
+
+<pre>
+$ curl https://www.ting.st/tale.zip -H "Range: bytes=42-193757" >1-2.zip
+$ unzip -v 1-2.zip
+Archive:  1-2.zip
+ Length   Method    Size  Cmpr <span class="wide">   Date    Time   CRC-32   </span>Name
+--------  ------  ------- ---- <span class="wide">---------- ----- --------  </span>----
+  101302  Defl:N    39251  61% <span class="wide">05-01-2026 11:29 e8b8bf09  </span>book-1.txt
+  408295  Defl:N   153861  62% <span class="wide">05-01-2026 11:29 2cb01fd8  </span>book-2.txt
+   39369  Stored    39369   0% <span class="wide">05-01-2026 11:29 794de1cf  </span>book-1.zip
+  153979  Stored   153979   0% <span class="wide">05-01-2026 11:29 467dcf94  </span>book-2.zip
+--------          -------  --- <span class="wide">                           </span>-------
+  702945           386460  45% <span class="wide">                           </span>4 files
+</pre>
+
+<p>I included nested zip files here as well, for consistency and fun 😀.</p>
+
+<p>Now, let's verify that the original file also works out of the box on
+Apple® MacOS 14:</p>
+
+<figure>
+    <img src="zip/mac.png" width="543" height="264"
+        alt="Screenshot of Archive Utility error message saying:
+        Unable to expand tale.zip into Downloads. (Error 79 -
+        Inappropriate file type or format.)" />
+    <figcaption><em>MacOS 14 Sonoma says: Error 79 - Inappropriate file type or format</em></figcaption>
+</figure>
+
+<p>Oh no, 😩! Maybe the trick only works on Linux/Unix command line tools?</p>
+<p>Let's try another platform and application, how about Microsoft Windows®:</p>
+
+<figure>
+    <img src="zip/PKZIP-Windows.png" width="640" height="480" alt="PKZIP for Windows" />
+    <figcaption><em>PKZIP 2.5 on Windows 3.1 working nicely</em></figcaption>
+</figure>
+
+<figure>
+<img src="zip/pkzip2.5.jpg" width="200" height="213"
+    alt="PKZIP for Windows Version 2.5 floppy disk"
+    style="float: right; margin-right: 1em; margin-bottom: 1em;" />
+</figure>
+
+<p>Well, that worked perfectly 🤩</p>
+
+<p>(Yes, I also tested the nested zip entries.)</p>
+
+<p>However, this was after all the real, official PKZIP application<br>
+(thank you, 
+<a href="https://archive.org/details/pkzip_2.50">Internet Archive</a> ❤️).</p>
+
+<p style="clear: both;">Perhaps we should check another third-party application,
+for example the popular WinZip:</p>
+<figure>
+    <img src="zip/WinZip-Windows2000.png" width="800" height="600" alt="WinZip" />
+    <figcaption><em>WinZip on Windows 2000 operating smoothly</em></figcaption>
+</figure>
+
+<p>Apparently, WinZip is also able to handle the allegedly inappropriate file without a hitch.</p>
+
+<p>Maybe the file only works on the specialized, ZIP-dedicated applications,
+and not OS-internal features?
+</p>
+
+<p>Let us try another operating system (OS) without any external tools installed:</p>
+
+<figure>
+    <img src="zip/Windows-XP.png" width="800" height="600" alt="Windows XP" />
+    <figcaption><em>Windows XP with no inappropriateness detected</em></figcaption>
+</figure>
+
+<p>I think we can conclude that the file is in fact NOT consistently inappropriate,
+despite Apple's claims.
+</p>
+
+<h2>Description</h2>
+
+<p>The most important parts can be logically described as:</p>
+<pre>
+tale.zip
+├── book-1.txt
+├── book-2.txt
+├── book-3.txt
+├── book-1-2.zip
+│   ├── book-1.txt
+│   └── book-2.txt
+└── book-2-3.zip
+    ├── book-2.txt
+    └── book-3.txt
+</pre>
+
+<details><summary>And it gets larger when including <code>book-[123].zip</code> for completeness</summary>
+<pre>
+tale.zip
+├── book-1.txt
+├── book-2.txt
+├── book-3.txt
+├── book-1-2.zip
+│   ├── book-1.txt
+│   ├── book-2.txt
+│   ├── book-1.zip
+│   │   └── book-1.txt
+│   └── book-2.zip
+│       └── book-2.txt
+├── book-2-3.zip
+│   ├── book-2.txt
+│   ├── book-3.txt
+│   ├── book-2.zip
+│   │   └── book-2.txt
+│   └── book-3.zip
+│       └── book-3.txt
+├── book-1.zip
+│   └── book-1.txt
+├── book-2.zip
+│   └── book-2.txt
+└── book-3.zip
+    └── book-3.txt
+</pre>
+</details>
+
+<p>Notice that there is a general structure here,
+where this file could itself be "book-1-3.zip" of a larger archive.</p>
+
+<p>The actual file bytes are laid out like this:</p>
+
+<style>
+  .list {
+    display: grid;
+    grid-template-columns: 1fr;
+    font-family: monospace;
+    padding: 12px 22px;
+  }
+  .item { grid-column: 1; padding: 2px 4px; z-index: 1; }
+  .rect {
+    grid-column: 1;
+    border: 2px solid currentColor;
+    border-radius: 10px;
+    pointer-events: none;
+  }
+  .r1 { color: #393; margin: -8px -20px; width: 220px; }
+  .r2 { color: #36c; margin:  0px -14px; width: 200px; }
+  .r3 { color: #c33; margin:  0px -8px; width: 180px; }
+  .r4 { color: #888; margin:  0px -2px; width: 160px; }
+</style>
+
+<div class="list">
+  <div class="item" style="grid-row:  1">header 1-2.zip</div>
+  <div class="item" style="grid-row:  2">header 1.zip</div>
+  <div class="item" style="grid-row:  3">header 1.txt</div>
+  <div class="item" style="grid-row:  4">data 1.txt</div>
+  <div class="item" style="grid-row:  5">enddir 1.zip</div>
+  <div class="item" style="grid-row:  6">header 2-3.zip</div>
+  <div class="item" style="grid-row:  7">header 2.zip</div>
+  <div class="item" style="grid-row:  8">header 2.txt</div>
+  <div class="item" style="grid-row:  9">data 2.txt</div>
+  <div class="item" style="grid-row: 10">enddir 2.zip</div>
+  <div class="item" style="grid-row: 11">enddir 1-2.zip</div>
+  <div class="item" style="grid-row: 12">header 3.zip</div>
+  <div class="item" style="grid-row: 13">header 3.txt</div>
+  <div class="item" style="grid-row: 14">data 3.txt</div>
+  <div class="item" style="grid-row: 15">enddir 3.zip</div>
+  <div class="item" style="grid-row: 16">enddir 2-3.zip</div>
+  <div class="item" style="grid-row: 17">enddir tale.zip</div>
+
+  <div class="rect r1" style="grid-row:  1 / span 17"></div>
+  <div class="rect r2" style="grid-row:  7 / span 10"></div>
+  <div class="rect r3" style="grid-row:  2 / span 10"></div>
+  <div class="rect r4" style="grid-row:  3 / span  3"></div>
+  <div class="rect r4" style="grid-row:  8 / span  3"></div>
+  <div class="rect r4" style="grid-row: 13 / span  3"></div>
+</div>
+
+<p>(Where <code>enddir</code> means all Central Directory records of the file,
+and <code>header</code> is the local file header of a <em>contained</em> file,
+i.e. there is no "header tale.zip".)
+<br>
+You can see that e.g. <code>header 2-3.zip</code> is included inside
+<code>1-2.zip</code>, but it is ignored there, and just a small number of bytes.
+</p>
+
+<h2>Endgame</h2>
+
+<p>So far, I have not been very critical of the construction, but there could be
+some concerns.
+</p><p>The ZIP
+<a  href="https://pkware.cachefly.net/webdocs/casestudies/APPNOTE.TXT"
+    title="4.3 General Format of a .ZIP file">specification</a>
+states:</p>
+<blockquote cite="https://pkware.cachefly.net/webdocs/casestudies/APPNOTE.TXT">
+    <p style="margin-left: 1rem; border-left: 2px solid grey; padding-left: 0.4rem;">
+    A ZIP file MUST have only one "end of central directory record".</p>
+</blockquote>
+
+<p>However, the ZIP file format specification is famously unclear about
+what this (among other things) means exactly, considering:</p>
+
+<div>
+<ul>
+    <li>
+It is perfectly rational to store a zip file inside another zip file
+    </li><li>
+A zip file is allowed to contain arbitrary binary data
+both prefixing (self-extracting file) and following (file comment <sup>&lt;</sup>64K)
+the archive data
+    </li><li>
+Compressed data can happen to contain the EOCD signature bytes
+    </li><li>
+Appending a new central directory to an archive is not unreasonable
+    </li><li>
+So implementations 
+<a href="https://lukebemish.dev/2026/01/29/zip-files.html"
+  title="Parsing ZIP Files: How Bad Could it Be?">vary</a>
+    </li>
+</ul>
+</div>
+
+<p>
+After performing my experiment, I found another similar use of overlapping
+byte ranges:
+<a href="https://www.bamsoftware.com/hacks/zipbomb/">A better zip bomb</a>
+(recommended read!)
+</p><p>
+This actually led some applications to 
+<a href="https://github.com/madler/unzip/commit/47b3ceae397d21bf822bc2ac73052a4b1daf8e1c"
+  title="Detect and reject a zip bomb using overlapped entries.">patch</a> their
+implementations to reject such files, while 
+<a href="https://bugzilla.suse.com/show_bug.cgi?id=1140748#c2"
+  title="SUSE currently does not intend to fix this problem.">others</a> did not 🙂
+</p>
+
+<p>Here's a patched example where listing and extracting the individual files
+is fine, but "extract all" and "test" fail:</p>
+
+<pre>
+$ unzip -v
+UnZip 6.00 of 20 April 2009, by Debian. Original by Info-ZIP.
+
+$ unzip -t tale.zip
+Archive:  tale.zip
+    testing: book-1.txt               OK
+    testing: book-2.txt               OK
+    testing: book-3.txt               OK
+    testing: book-1.zip               OK
+error: invalid zip file with overlapped components (possible zip bomb)
+</pre>
+
+<p><strong>Maybe the file is a little bit inappropriate after all, but I still like it.</strong></p>
+
+<p>Some notes:</p>
+
+<div>
+<ul>
+    <li>Zip files are quite flexible</li>
+    <li>I constructed the proof-of-concept file using Bash 😱 and quickly regretted it</li>
+    <li>Emulation is very cool
+        <ul>
+            <li><a href="https://www.pcjs.org/">https://www.pcjs.org</a></li>
+            <li><a href="https://copy.sh/v86/">https://copy.sh/v86</a></li>
+        </ul>
+    </li>
+    <li>I like the old UIs</li>
+    <li>BTW, did you know that it's possible to HTTP Range-GET compressed
+        data directly if the server sets the header <code>Content-Encoding: deflate</code>,
+        re. <a href="https://datatracker.ietf.org/doc/html/rfc9110#name-deflate-coding"
+        title="HTTP Semantics">RFC 9110</a> <q>Some non-conformant implementations
+        send the "deflate" compressed data without the zlib wrapper.</q>
+    </li>
+</ul>
+</div>
+
+<p>—Richard H. Tingstad</p>
+
+</body>
+</html>
+
