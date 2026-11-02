@@ -20,6 +20,10 @@ https://www.ting.st/term-colors.html
 
 https://www.ting.st/notepadlet.html
 
+## Quine.pdf slides
+
+https://www.ting.st/quine.html
+
 ## data-url-display
 
 http://i.ting.st/url.html#data:text/plain,Hello
