@@ -119,6 +119,7 @@
       const savedAudioList = document.getElementById('saved-audio-list');
       let currentObjectUrl;
       let currentTrackUrl;
+      let isRestoringPlayback = false;
       let lastSavedTime = -2;
       const playbackStateKey = 'offline-audio-playback';
       const trackPositionsKey = 'offline-audio-positions';
@@ -168,6 +169,7 @@
           const playButton = document.createElement('button');
           playButton.type = 'button';
           playButton.className = 'track-play';
+          playButton.disabled = isRestoringPlayback;
           playButton.classList.toggle('is-current', track.url === currentTrackUrl);
           if (track.url === currentTrackUrl) playButton.setAttribute('aria-current', 'true');
           playButton.dataset.playUrl = track.url;
@@ -309,32 +311,51 @@
         }
         if (!state?.url) return;
 
-        status.textContent = 'Restoring saved track…';
-        const track = await getTrack(state.url);
-        if (!track) {
-          localStorage.removeItem(playbackStateKey);
-          status.textContent = '';
-          return;
-        }
-
-        currentTrackUrl = track.url;
-        currentObjectUrl = URL.createObjectURL(track.blob);
-        const metadataReady = new Promise(resolve => {
-          audioPlayer.addEventListener('loadedmetadata', resolve, { once: true });
-          audioPlayer.addEventListener('error', resolve, { once: true });
+        isRestoringPlayback = true;
+        playPauseButton.disabled = true;
+        savedAudioList.querySelectorAll('.track-play').forEach(button => {
+          button.disabled = true;
         });
-        audioPlayer.src = currentObjectUrl;
-        audioPlayer.load();
-        await metadataReady;
-        playPauseButton.disabled = false;
+        status.textContent = 'Restoring saved track…';
+        try {
+          const track = await getTrack(state.url);
+          if (!track) {
+            localStorage.removeItem(playbackStateKey);
+            status.textContent = '';
+            return;
+          }
 
-        if (Number.isFinite(state.time) && Number.isFinite(audioPlayer.duration)) {
-          audioPlayer.currentTime = Math.max(0, Math.min(state.time, audioPlayer.duration));
+          currentObjectUrl = URL.createObjectURL(track.blob);
+          const metadataReady = new Promise((resolve, reject) => {
+            const onLoaded = () => {
+              audioPlayer.removeEventListener('error', onError);
+              resolve();
+            };
+            const onError = () => {
+              audioPlayer.removeEventListener('loadedmetadata', onLoaded);
+              reject(new Error('The saved audio could not be loaded.'));
+            };
+            audioPlayer.addEventListener('loadedmetadata', onLoaded, { once: true });
+            audioPlayer.addEventListener('error', onError, { once: true });
+          });
+          audioPlayer.src = currentObjectUrl;
+          audioPlayer.load();
+          await metadataReady;
+
+          currentTrackUrl = track.url;
+          if (Number.isFinite(state.time) && Number.isFinite(audioPlayer.duration)) {
+            audioPlayer.currentTime = Math.max(0, Math.min(state.time, audioPlayer.duration));
+          }
+          lastSavedTime = audioPlayer.currentTime - 2;
+          savePlaybackState(true);
+          playPauseButton.disabled = false;
+          status.textContent = `Selected ${track.title}.`;
+        } catch (error) {
+          status.textContent = `Could not restore saved audio: ${error.message}`;
+        } finally {
+          isRestoringPlayback = false;
+          await renderSavedTracks();
         }
-        lastSavedTime = audioPlayer.currentTime - 2;
-        savePlaybackState(true);
-        await renderSavedTracks();
-        status.textContent = `Selected ${track.title}.`;
       }
 
       async function deleteTrack(url) {
@@ -476,7 +497,7 @@
         }
 
         const playButton = event.target.closest('button[data-play-url]');
-        if (!playButton) return;
+        if (!playButton || isRestoringPlayback) return;
 
         try {
           if (playButton.dataset.playUrl === currentTrackUrl) {
