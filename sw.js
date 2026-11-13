@@ -1,4 +1,4 @@
-const CACHE_NAME = 'offline-support-v1';
+const CACHE_NAME = 'offline-support-v2';
 
 self.addEventListener('install', event => {
   // Runs on first install, or when the browser detects a changed sw.js file.
