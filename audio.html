@@ -1,0 +1,486 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#171717">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E🎵%3C/text%3E%3C/svg%3E">
+  <title>Audio</title>
+  <style>
+    body {
+      font-family: system-ui, sans-serif;
+      background: #171717;
+      color: white;
+      margin: 0;
+      padding: 0;
+      min-height: 100vh;
+      min-height: 100dvh;
+      display: flex;
+      justify-content: center;
+      align-items: stretch;
+    }
+    main {
+      width: 100%;
+      max-width: 420px;
+      min-height: 100vh;
+      min-height: 100dvh;
+      box-sizing: border-box;
+      padding: 24px 20px max(16px, env(safe-area-inset-bottom));
+      display: flex;
+      flex-direction: column;
+    }
+    h1 { font-size: 24px; }
+    p { color: #aaa; }
+    audio { width: 100%; margin-top: 20px; }
+    .seek-controls { display: flex; gap: 8px; width: 100%; }
+    .seek-controls button { flex: 1; min-height: 56px; }
+    details summary { cursor: pointer; }
+    .add-audio-form { display: flex; flex-direction: column; gap: 8px; padding-top: 12px; }
+    .add-audio-options { display: flex; align-items: center; gap: 8px; }
+    .add-audio-options input { flex: 1; min-width: 0; }
+    .player-dock {
+      position: sticky;
+      bottom: 0;
+      margin-top: auto;
+      padding: 12px 0 max(12px, env(safe-area-inset-bottom));
+      background: #171717;
+    }
+    #saved-audio-list {
+      list-style: none;
+      padding: 0;
+      margin: 0 -20px;
+      width: calc(100% + 40px);
+    }
+    #saved-audio-list li:nth-child(odd) { background: #252525; }
+    #saved-audio-list li:nth-child(even) { background: #303030; }
+    #saved-audio-list li { display: flex; align-items: stretch; }
+    #saved-audio-list button {
+      display: block;
+      box-sizing: border-box;
+      width: 100%;
+      padding: 12px;
+      border: 0;
+      background: transparent;
+      color: inherit;
+      text-align: left;
+      cursor: pointer;
+    }
+    #saved-audio-list button:hover { background: rgb(255 255 255 / 12%); }
+    #saved-audio-list .track-play {
+      display: flex;
+      flex: 1;
+      align-items: center;
+      gap: 12px;
+    }
+    #saved-audio-list .track-duration { margin-left: auto; color: #aaa; white-space: nowrap; }
+    #saved-audio-list .track-delete { width: 52px; flex: 0 0 52px; text-align: center; }
+    #saved-audio-list .track-play.is-current {
+      background: #414141;
+      box-shadow: inset 4px 0 #8ab4f8;
+    }
+    #saved-audio-list .track-selected { color: #8ab4f8; font-size: 0.85em; }
+  </style>
+</head>
+<body>
+  <main>
+    <h1>Audio</h1>
+
+    <details id="add-audio-details" open>
+      <summary>Add audio</summary>
+      <div class="add-audio-form">
+        <div class="add-audio-options">
+          <button id="save-audio" type="button">Add from URL</button> or 
+          <input id="audio-file" type="file" accept="audio/*,.mp3"
+            aria-label="Choose an audio file">
+        </div>
+      </div>
+    </details>
+    <p id="save-status" role="status" aria-live="polite"></p>
+
+    <ul id="saved-audio-list"></ul>
+
+    <div class="player-dock">
+      <audio id="audio-player" controls preload="metadata">
+        <source type="audio/mpeg">
+        Your browser does not support audio playback.
+      </audio>
+      <div class="seek-controls">
+        <button id="back-15" type="button">Back 15 seconds</button>
+        <button id="play-pause" type="button" disabled>Play</button>
+        <button id="forward-15" type="button">Forward 15 seconds</button>
+      </div>
+    </div>
+    <script>
+      const audioPlayer = document.getElementById('audio-player');
+      const playPauseButton = document.getElementById('play-pause');
+      const saveButton = document.getElementById('save-audio');
+      const fileInput = document.getElementById('audio-file');
+      const status = document.getElementById('save-status');
+      const savedAudioList = document.getElementById('saved-audio-list');
+      let currentObjectUrl;
+      let currentTrackUrl;
+      let lastSavedTime = -2;
+      const playbackStateKey = 'offline-audio-playback';
+      const trackPositionsKey = 'offline-audio-positions';
+
+      const databasePromise = new Promise((resolve, reject) => {
+        const request = indexedDB.open('offline-audio', 1);
+        request.onupgradeneeded = () => {
+          request.result.createObjectStore('tracks', { keyPath: 'url' });
+        };
+        request.onsuccess = () => resolve(request.result);
+        request.onerror = () => reject(request.error);
+      });
+
+      async function getAllTracks() {
+        const database = await databasePromise;
+        return new Promise((resolve, reject) => {
+          const request = database.transaction('tracks').objectStore('tracks').getAll();
+          request.onsuccess = () => resolve(request.result);
+          request.onerror = () => reject(request.error);
+        });
+      }
+
+      async function getTrack(url) {
+        const database = await databasePromise;
+        return new Promise((resolve, reject) => {
+          const request = database.transaction('tracks').objectStore('tracks').get(url);
+          request.onsuccess = () => resolve(request.result);
+          request.onerror = () => reject(request.error);
+        });
+      }
+
+      async function saveTrack(track) {
+        const database = await databasePromise;
+        return new Promise((resolve, reject) => {
+          const request = database.transaction('tracks', 'readwrite')
+            .objectStore('tracks').put(track);
+          request.onsuccess = () => resolve();
+          request.onerror = () => reject(request.error);
+        });
+      }
+
+      async function renderSavedTracks() {
+        savedAudioList.replaceChildren();
+        const tracks = await getAllTracks();
+        for (const track of tracks) {
+          const item = document.createElement('li');
+          const playButton = document.createElement('button');
+          playButton.type = 'button';
+          playButton.className = 'track-play';
+          playButton.classList.toggle('is-current', track.url === currentTrackUrl);
+          if (track.url === currentTrackUrl) playButton.setAttribute('aria-current', 'true');
+          playButton.dataset.playUrl = track.url;
+          const title = document.createElement('span');
+          title.textContent = track.title;
+          playButton.append(title);
+          if (Number.isFinite(track.duration)) {
+            const duration = document.createElement('span');
+            duration.className = 'track-duration';
+            duration.textContent = formatDuration(track.duration);
+            playButton.append(duration);
+          }
+          if (track.url === currentTrackUrl) {
+            const selectedLabel = document.createElement('span');
+            selectedLabel.className = 'track-selected';
+            selectedLabel.textContent = 'Selected';
+            playButton.append(selectedLabel);
+          }
+
+          const deleteButton = document.createElement('button');
+          deleteButton.type = 'button';
+          deleteButton.className = 'track-delete';
+          deleteButton.dataset.deleteUrl = track.url;
+          deleteButton.textContent = '🗑️';
+          deleteButton.setAttribute('aria-label', `Delete ${track.title}`);
+
+          item.append(playButton, deleteButton);
+          savedAudioList.append(item);
+        }
+        document.getElementById('add-audio-details').open = tracks.length === 0;
+      }
+
+      function readDuration(blob) {
+        return new Promise(resolve => {
+          const objectUrl = URL.createObjectURL(blob);
+          const audio = new Audio();
+          const finish = duration => {
+            audio.removeAttribute('src');
+            audio.load();
+            URL.revokeObjectURL(objectUrl);
+            resolve(Number.isFinite(duration) ? duration : null);
+          };
+          audio.preload = 'metadata';
+          audio.addEventListener('loadedmetadata', () => finish(audio.duration), { once: true });
+          audio.addEventListener('error', () => finish(null), { once: true });
+          audio.src = objectUrl;
+        });
+      }
+
+      function formatDuration(seconds) {
+        const totalSeconds = Math.floor(seconds);
+        const hours = Math.floor(totalSeconds / 3600);
+        const minutes = Math.floor((totalSeconds % 3600) / 60);
+        const remainingSeconds = totalSeconds % 60;
+        return hours
+          ? `${hours}:${String(minutes).padStart(2, '0')}:${String(remainingSeconds).padStart(2, '0')}`
+          : `${minutes}:${String(remainingSeconds).padStart(2, '0')}`;
+      }
+
+      function savePlaybackState(force = false) {
+        if (!currentTrackUrl || !Number.isFinite(audioPlayer.currentTime)) return;
+        const time = audioPlayer.currentTime;
+        if (!force && Math.abs(time - lastSavedTime) < 2) return;
+        try {
+          localStorage.setItem(playbackStateKey, JSON.stringify({
+            url: currentTrackUrl,
+            time
+          }));
+          const positions = JSON.parse(localStorage.getItem(trackPositionsKey) || '{}');
+          positions[currentTrackUrl] = time;
+          localStorage.setItem(trackPositionsKey, JSON.stringify(positions));
+          lastSavedTime = time;
+        } catch {}
+      }
+
+      function getTrackPosition(url) {
+        try {
+          const positions = JSON.parse(localStorage.getItem(trackPositionsKey) || '{}');
+          return Number.isFinite(positions[url]) ? positions[url] : 0;
+        } catch {
+          return 0;
+        }
+      }
+
+      function forgetTrackPosition(url) {
+        try {
+          const positions = JSON.parse(localStorage.getItem(trackPositionsKey) || '{}');
+          delete positions[url];
+          localStorage.setItem(trackPositionsKey, JSON.stringify(positions));
+        } catch {}
+      }
+
+      async function selectTrack(track, autoplay = false) {
+        savePlaybackState(true);
+        currentTrackUrl = undefined;
+        audioPlayer.pause();
+        if (currentObjectUrl) URL.revokeObjectURL(currentObjectUrl);
+        currentObjectUrl = URL.createObjectURL(track.blob);
+        const savedPosition = getTrackPosition(track.url);
+        const metadataReady = new Promise(resolve => {
+          audioPlayer.addEventListener('loadedmetadata', resolve, { once: true });
+          audioPlayer.addEventListener('error', resolve, { once: true });
+        });
+        audioPlayer.src = currentObjectUrl;
+        audioPlayer.load();
+        await metadataReady;
+        currentTrackUrl = track.url;
+        playPauseButton.disabled = false;
+        if (Number.isFinite(audioPlayer.duration)) {
+          audioPlayer.currentTime = Math.min(savedPosition, audioPlayer.duration);
+        }
+        lastSavedTime = -2;
+        savePlaybackState(true);
+        await renderSavedTracks();
+        if (autoplay) {
+          await audioPlayer.play();
+          status.textContent = `Playing ${track.title}.`;
+        } else {
+          status.textContent = `Selected ${track.title}.`;
+        }
+      }
+
+      async function restorePlaybackState() {
+        let state;
+        try {
+          state = JSON.parse(localStorage.getItem(playbackStateKey));
+        } catch {
+          localStorage.removeItem(playbackStateKey);
+          return;
+        }
+        if (!state?.url) return;
+
+        const track = await getTrack(state.url);
+        if (!track) {
+          localStorage.removeItem(playbackStateKey);
+          return;
+        }
+
+        currentTrackUrl = track.url;
+        currentObjectUrl = URL.createObjectURL(track.blob);
+        const metadataReady = new Promise(resolve => {
+          audioPlayer.addEventListener('loadedmetadata', resolve, { once: true });
+          audioPlayer.addEventListener('error', resolve, { once: true });
+        });
+        audioPlayer.src = currentObjectUrl;
+        audioPlayer.load();
+        await metadataReady;
+        playPauseButton.disabled = false;
+
+        if (Number.isFinite(state.time) && Number.isFinite(audioPlayer.duration)) {
+          audioPlayer.currentTime = Math.max(0, Math.min(state.time, audioPlayer.duration));
+        }
+        lastSavedTime = audioPlayer.currentTime - 2;
+        savePlaybackState(true);
+        await renderSavedTracks();
+      }
+
+      async function deleteTrack(url) {
+        const database = await databasePromise;
+        return new Promise((resolve, reject) => {
+          const request = database.transaction('tracks', 'readwrite')
+            .objectStore('tracks').delete(url);
+          request.onsuccess = () => resolve();
+          request.onerror = () => reject(request.error);
+        });
+      }
+
+      if ('serviceWorker' in navigator) {
+        navigator.serviceWorker.register('./sw.js')
+          .catch(error => console.error('Service worker registration failed:', error));
+      }
+
+      renderSavedTracks().then(restorePlaybackState).catch(error => {
+        status.textContent = `Could not load saved audio: ${error.message}`;
+      });
+
+      document.getElementById('back-15').addEventListener('click', () => {
+        audioPlayer.currentTime = Math.max(0, audioPlayer.currentTime - 15);
+      });
+      document.getElementById('forward-15').addEventListener('click', () => {
+        const targetTime = audioPlayer.currentTime + 15;
+        audioPlayer.currentTime = Number.isFinite(audioPlayer.duration)
+          ? Math.min(audioPlayer.duration, targetTime)
+          : targetTime;
+      });
+      playPauseButton.addEventListener('click', async () => {
+        if (audioPlayer.paused) {
+          try {
+            await audioPlayer.play();
+          } catch (error) {
+            status.textContent = `Could not play audio: ${error.message}`;
+          }
+        } else {
+          audioPlayer.pause();
+        }
+      });
+      audioPlayer.addEventListener('play', () => {
+        playPauseButton.textContent = 'Pause';
+      });
+      audioPlayer.addEventListener('pause', () => {
+        playPauseButton.textContent = 'Play';
+        savePlaybackState(true);
+      });
+      audioPlayer.addEventListener('timeupdate', () => savePlaybackState());
+      audioPlayer.addEventListener('seeked', () => savePlaybackState(true));
+      window.addEventListener('pagehide', () => savePlaybackState(true));
+
+      saveButton.addEventListener('click', async () => {
+        const enteredUrl = window.prompt('Enter an audio URL', 'https://');
+        if (!enteredUrl?.trim()) return;
+
+        saveButton.disabled = true;
+        status.textContent = 'Saving audio for offline use…';
+
+        try {
+          // Fetch the complete MP3 and persist its Blob in IndexedDB for offline playback.
+          const url = new URL(enteredUrl.trim()).href;
+          const response = await fetch(url);
+          if (!response.ok) {
+            throw new Error(`Request failed (${response.status})`);
+          }
+          const filename = decodeURIComponent(new URL(url).pathname.split('/').pop());
+          const blob = await response.blob();
+          const track = {
+            url,
+            title: filename || 'Audio',
+            blob,
+            duration: await readDuration(blob)
+          };
+          const isFirstTrack = (await getAllTracks()).length === 0;
+          await saveTrack(track);
+          await renderSavedTracks();
+          if (isFirstTrack) await selectTrack(track);
+          else status.textContent = 'Saved for offline playback.';
+        } catch (error) {
+          status.textContent = `Could not save this audio. The server may block cross-origin access. ${error.message}`;
+        } finally {
+          saveButton.disabled = false;
+        }
+      });
+
+      fileInput.addEventListener('change', async () => {
+        const file = fileInput.files[0];
+        if (!file) return;
+
+        fileInput.disabled = true;
+        try {
+          const id = globalThis.crypto?.randomUUID?.() || `${Date.now()}-${Math.random()}`;
+          const duration = await readDuration(file);
+          const track = {
+            url: `local:${id}`,
+            title: file.name,
+            blob: file,
+            duration
+          };
+          const isFirstTrack = (await getAllTracks()).length === 0;
+          await saveTrack(track);
+          await renderSavedTracks();
+          fileInput.value = '';
+          if (isFirstTrack) await selectTrack(track);
+          else status.textContent = 'File added for offline playback.';
+        } catch (error) {
+          status.textContent = `Could not save this file: ${error.message}`;
+        } finally {
+          fileInput.disabled = false;
+        }
+      });
+
+      savedAudioList.addEventListener('click', async event => {
+        const deleteButton = event.target.closest('button[data-delete-url]');
+        if (deleteButton) {
+          if (!window.confirm('Delete this audio?')) return;
+          const url = deleteButton.dataset.deleteUrl;
+          try {
+            await deleteTrack(url);
+            if (currentTrackUrl === url) {
+              audioPlayer.pause();
+              audioPlayer.removeAttribute('src');
+              audioPlayer.load();
+              if (currentObjectUrl) URL.revokeObjectURL(currentObjectUrl);
+              currentObjectUrl = undefined;
+              currentTrackUrl = undefined;
+              playPauseButton.textContent = 'Play';
+              playPauseButton.disabled = true;
+              localStorage.removeItem(playbackStateKey);
+            }
+            forgetTrackPosition(url);
+            await renderSavedTracks();
+            status.textContent = 'Audio deleted.';
+          } catch (error) {
+            status.textContent = `Could not delete audio: ${error.message}`;
+          }
+          return;
+        }
+
+        const playButton = event.target.closest('button[data-play-url]');
+        if (!playButton) return;
+
+        try {
+          if (playButton.dataset.playUrl === currentTrackUrl) {
+            if (audioPlayer.paused) await audioPlayer.play();
+            else audioPlayer.pause();
+            return;
+          }
+
+          const track = await getTrack(playButton.dataset.playUrl);
+          if (!track) return;
+          await selectTrack(track, true);
+        } catch (error) {
+          status.textContent = `Could not play saved audio: ${error.message}`;
+        }
+      });
+    </script>
+  </main>
+</body>
+</html>
