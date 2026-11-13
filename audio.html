@@ -263,13 +263,22 @@
       async function selectTrack(track, autoplay = false) {
         savePlaybackState(true);
         currentTrackUrl = undefined;
+        playPauseButton.disabled = true;
         audioPlayer.pause();
         if (currentObjectUrl) URL.revokeObjectURL(currentObjectUrl);
         currentObjectUrl = URL.createObjectURL(track.blob);
         const savedPosition = getTrackPosition(track.url);
-        const metadataReady = new Promise(resolve => {
-          audioPlayer.addEventListener('loadedmetadata', resolve, { once: true });
-          audioPlayer.addEventListener('error', resolve, { once: true });
+        const metadataReady = new Promise((resolve, reject) => {
+          const onLoaded = () => {
+            audioPlayer.removeEventListener('error', onError);
+            resolve();
+          };
+          const onError = () => {
+            audioPlayer.removeEventListener('loadedmetadata', onLoaded);
+            reject(new Error('The selected audio could not be loaded.'));
+          };
+          audioPlayer.addEventListener('loadedmetadata', onLoaded, { once: true });
+          audioPlayer.addEventListener('error', onError, { once: true });
         });
         audioPlayer.src = currentObjectUrl;
         audioPlayer.load();
