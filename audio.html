@@ -105,14 +105,16 @@
         Your browser does not support audio playback.
       </audio>
       <div class="seek-controls">
-        <button id="back-15" type="button">Back 15 seconds</button>
-        <button id="play-pause" type="button" disabled>Play</button>
-        <button id="forward-15" type="button">Forward 15 seconds</button>
+        <button disabled id="back-15" type="button">Back 15 seconds</button>
+        <button disabled id="play-pause" type="button">Play</button>
+        <button disabled id="forward-15" type="button">Forward 15 seconds</button>
       </div>
     </div>
     <script>
       const audioPlayer = document.getElementById('audio-player');
       const playPauseButton = document.getElementById('play-pause');
+      const backButton = document.getElementById('back-15');
+      const forwardButton = document.getElementById('forward-15');
       const saveButton = document.getElementById('save-audio');
       const fileInput = document.getElementById('audio-file');
       const status = document.getElementById('save-status');
@@ -123,6 +125,13 @@
       let lastSavedTime = -2;
       const playbackStateKey = 'offline-audio-playback';
       const trackPositionsKey = 'offline-audio-positions';
+
+      function updatePlayerButtons() {
+        const ready = Boolean(currentTrackUrl) && !isRestoringPlayback;
+        backButton.disabled = !ready;
+        playPauseButton.disabled = !ready;
+        forwardButton.disabled = !ready;
+      }
 
       const databasePromise = new Promise((resolve, reject) => {
         const request = indexedDB.open('offline-audio', 1);
@@ -192,6 +201,7 @@
           const deleteButton = document.createElement('button');
           deleteButton.type = 'button';
           deleteButton.className = 'track-delete';
+          deleteButton.disabled = isRestoringPlayback;
           deleteButton.dataset.deleteUrl = track.url;
           deleteButton.textContent = '🗑️';
           deleteButton.setAttribute('aria-label', `Delete ${track.title}`);
@@ -265,7 +275,7 @@
       async function selectTrack(track, autoplay = false) {
         savePlaybackState(true);
         currentTrackUrl = undefined;
-        playPauseButton.disabled = true;
+        updatePlayerButtons();
         audioPlayer.pause();
         if (currentObjectUrl) URL.revokeObjectURL(currentObjectUrl);
         currentObjectUrl = URL.createObjectURL(track.blob);
@@ -286,7 +296,7 @@
         audioPlayer.load();
         await metadataReady;
         currentTrackUrl = track.url;
-        playPauseButton.disabled = false;
+        updatePlayerButtons();
         if (Number.isFinite(audioPlayer.duration)) {
           audioPlayer.currentTime = Math.min(savedPosition, audioPlayer.duration);
         }
@@ -312,12 +322,14 @@
         if (!state?.url) return;
 
         isRestoringPlayback = true;
-        playPauseButton.disabled = true;
-        savedAudioList.querySelectorAll('.track-play').forEach(button => {
+        updatePlayerButtons();
+        savedAudioList.querySelectorAll('button').forEach(button => {
           button.disabled = true;
         });
         status.textContent = 'Restoring saved track…';
         try {
+          // await new Promise(r => setTimeout(r, 9000));
+
           const track = await getTrack(state.url);
           if (!track) {
             localStorage.removeItem(playbackStateKey);
@@ -348,13 +360,13 @@
           }
           lastSavedTime = audioPlayer.currentTime - 2;
           savePlaybackState(true);
-          playPauseButton.disabled = false;
           status.textContent = `Selected ${track.title}.`;
         } catch (error) {
           status.textContent = `Could not restore saved audio: ${error.message}`;
         } finally {
           isRestoringPlayback = false;
           await renderSavedTracks();
+          updatePlayerButtons();
         }
       }
 
@@ -370,6 +382,12 @@
 
       if ('serviceWorker' in navigator) {
         navigator.serviceWorker.register('./sw.js')
+          .then(() => navigator.serviceWorker.ready)
+          .then(registration => {
+            console.log('ready!');
+            const worker = navigator.serviceWorker.controller || registration.active;
+            worker?.postMessage({ type: 'CACHE_PAGES', urls: [ location.href ] });
+          })
           .catch(error => console.error('Service worker registration failed:', error));
       }
 
@@ -470,6 +488,7 @@
       });
 
       savedAudioList.addEventListener('click', async event => {
+        if (isRestoringPlayback) return;
         const deleteButton = event.target.closest('button[data-delete-url]');
         if (deleteButton) {
           if (!window.confirm('Delete this audio?')) return;
@@ -484,7 +503,7 @@
               currentObjectUrl = undefined;
               currentTrackUrl = undefined;
               playPauseButton.textContent = 'Play';
-              playPauseButton.disabled = true;
+              updatePlayerButtons();
               localStorage.removeItem(playbackStateKey);
             }
             forgetTrackPosition(url);
