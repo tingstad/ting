@@ -309,9 +309,11 @@
         }
         if (!state?.url) return;
 
+        status.textContent = 'Restoring saved track…';
         const track = await getTrack(state.url);
         if (!track) {
           localStorage.removeItem(playbackStateKey);
+          status.textContent = '';
           return;
         }
 
@@ -332,6 +334,7 @@
         lastSavedTime = audioPlayer.currentTime - 2;
         savePlaybackState(true);
         await renderSavedTracks();
+        status.textContent = `Selected ${track.title}.`;
       }
 
       async function deleteTrack(url) {
