@@ -29,7 +29,8 @@ jobs:
     - name: Deploy static site to S3 bucket
       run: >
         aws s3 sync . s3://i.ting.st --exclude "*"
-        --include "*.html" --include "*.ttf" --include "sw.js"
+        --include "*.html" --include "sw.js"
+        --include "qrcode.js" --include "*.ttf"
         --include "svahoe/*"
         --size-only --delete
 

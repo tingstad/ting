@@ -1,0 +1,55 @@
+<!doctype html>
+<html lang="en">
+<head>
+	<meta charset="utf-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1.0">
+	<title>QRCode generator</title>
+	<script type="text/javascript" src="qrcode.js"></script>
+</head>
+<body>
+<input id="text" type="text" value="https://" style="width:80%" /><br />
+<div id="qrcode" style="width:100px; height:100px; margin-top:15px;"></div>
+
+<script type="text/javascript">
+if ('serviceWorker' in navigator) {
+	navigator.serviceWorker.register('./sw.js')
+		.then(() => navigator.serviceWorker.ready)
+		.then(registration => {
+			console.log('ready!');
+			const worker = navigator.serviceWorker.controller || registration.active;
+			worker?.postMessage({ type: 'CACHE_PAGES',
+				urls:[ location.href, './qrcode.js' ] });
+		})
+		.catch(error => console.error('Service worker registration failed:', error));
+}
+
+var qrcode = new QRCode(document.getElementById("qrcode"), {
+	width : 240,
+	height : 240
+});
+
+function makeCode () {		
+	var elText = document.getElementById("text");
+	
+	if (!elText.value) {
+		alert("Input a text");
+		elText.focus();
+		return;
+	}
+	
+	qrcode.makeCode(elText.value);
+}
+
+makeCode();
+
+document.getElementById("text").addEventListener("blur", function () {
+	makeCode();
+});
+
+document.getElementById("text").addEventListener("keydown", function (e) {
+	if (e.keyCode == 13) {
+		makeCode();
+	}
+});
+</script>
+</body>
