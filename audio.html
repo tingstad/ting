@@ -100,7 +100,7 @@
     <ul id="saved-audio-list"></ul>
 
     <div class="player-dock">
-      <audio id="audio-player" controls preload="metadata">
+      <audio id="audio-player" preload="metadata">
         <source type="audio/mpeg">
         Your browser does not support audio playback.
       </audio>
@@ -128,6 +128,7 @@
 
       function updatePlayerButtons() {
         const ready = Boolean(currentTrackUrl) && !isRestoringPlayback;
+        audioPlayer.controls = ready;
         backButton.disabled = !ready;
         playPauseButton.disabled = !ready;
         forwardButton.disabled = !ready;
