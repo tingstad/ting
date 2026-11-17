@@ -141,6 +141,15 @@
       </form>
     </dialog>
     <script>
+      const audioUrlFromFragment = (() => {
+        const params = new URLSearchParams(location.hash.slice(1));
+        const audioUrl = params.get('add');
+        if (audioUrl !== null) {
+          history.replaceState(history.state, '', `${location.pathname}${location.search}`);
+        }
+        return audioUrl?.trim() || undefined;
+      })();
+
       const audioPlayer = document.getElementById('audio-player');
       const playPauseButton = document.getElementById('play-pause');
       const backButton = document.getElementById('back-15');
@@ -487,7 +496,10 @@
           .catch(error => console.error('Service worker registration failed:', error));
       }
 
-      renderSavedTracks().then(restorePlaybackState).catch(error => {
+      renderSavedTracks().then(() => {
+        void restorePlaybackState();
+        if (audioUrlFromFragment) void saveAudioFromUrl(audioUrlFromFragment);
+      }).catch(error => {
         status.textContent = `Could not load saved audio: ${error.message}`;
       });
 
@@ -522,8 +534,7 @@
       audioPlayer.addEventListener('seeked', () => savePlaybackState(true));
       window.addEventListener('pagehide', () => savePlaybackState(true));
 
-      saveButton.addEventListener('click', async () => {
-        const enteredUrl = window.prompt('Enter an audio URL', 'https://');
+      async function saveAudioFromUrl(enteredUrl) {
         if (!enteredUrl?.trim()) return;
 
         saveButton.disabled = true;
@@ -554,6 +565,12 @@
         } finally {
           saveButton.disabled = false;
         }
+      }
+
+      saveButton.addEventListener('click', async () => {
+        const enteredUrl = window.prompt('Enter an audio URL', 'https://');
+        if (!enteredUrl?.trim()) return;
+        await saveAudioFromUrl(enteredUrl);
       });
 
       fileInput.addEventListener('change', async () => {
