@@ -73,12 +73,27 @@
       gap: 12px;
     }
     #saved-audio-list .track-duration { margin-left: auto; color: #aaa; white-space: nowrap; }
-    #saved-audio-list .track-delete { width: 52px; flex: 0 0 52px; text-align: center; }
+    #saved-audio-list .track-details { width: 52px; flex: 0 0 52px; text-align: center; }
     #saved-audio-list .track-play.is-current {
       background: #414141;
       box-shadow: inset 4px 0 #8ab4f8;
     }
     #saved-audio-list .track-selected { color: #8ab4f8; font-size: 0.85em; }
+    #track-details-dialog {
+      box-sizing: border-box;
+      width: min(380px, calc(100vw - 40px));
+      color: white;
+      background: #252525;
+      border: 1px solid #666;
+      border-radius: 8px;
+    }
+    #track-details-dialog::backdrop { background: rgb(0 0 0 / 70%); }
+    #track-details-dialog p { color: #ddd; }
+    .dialog-actions { display: flex; justify-content: flex-end; gap: 8px; }
+    #track-display-name { box-sizing: border-box; width: 100%; margin: 8px 0 16px; }
+    .track-details-heading { display: flex; align-items: center; gap: 12px; }
+    .track-details-heading p { flex: 1; min-width: 0; overflow-wrap: anywhere; }
+    .track-details-heading button { flex: 0 0 auto; }
   </style>
 </head>
 <body>
@@ -110,6 +125,21 @@
         <button disabled id="forward-15" type="button">Forward 15 seconds</button>
       </div>
     </div>
+    <dialog id="track-details-dialog" aria-labelledby="track-details-title">
+      <h2 id="track-details-title">Track details</h2>
+      <div class="track-details-heading">
+        <p id="track-details-name"></p>
+        <button id="dialog-track-delete" type="button">Delete</button>
+      </div>
+      <form id="track-display-name-form">
+        <label for="track-display-name">Display name</label>
+        <input id="track-display-name" type="text" maxlength="120">
+        <div class="dialog-actions">
+          <button id="close-track-details" type="button">Close</button>
+          <button type="submit">Save</button>
+        </div>
+      </form>
+    </dialog>
     <script>
       const audioPlayer = document.getElementById('audio-player');
       const playPauseButton = document.getElementById('play-pause');
@@ -119,6 +149,13 @@
       const fileInput = document.getElementById('audio-file');
       const status = document.getElementById('save-status');
       const savedAudioList = document.getElementById('saved-audio-list');
+      const trackDetailsDialog = document.getElementById('track-details-dialog');
+      const trackDetailsName = document.getElementById('track-details-name');
+      const trackDisplayNameForm = document.getElementById('track-display-name-form');
+      const trackDisplayNameInput = document.getElementById('track-display-name');
+      const closeTrackDetailsButton = document.getElementById('close-track-details');
+      const dialogTrackDeleteButton = document.getElementById('dialog-track-delete');
+      let pendingDeleteUrl;
       let currentObjectUrl;
       let currentTrackUrl;
       let isRestoringPlayback = false;
@@ -171,6 +208,10 @@
         });
       }
 
+      function getTrackDisplayName(track) {
+        return track.displayName?.trim() || track.title;
+      }
+
       async function renderSavedTracks() {
         savedAudioList.replaceChildren();
         const tracks = await getAllTracks();
@@ -184,7 +225,7 @@
           if (track.url === currentTrackUrl) playButton.setAttribute('aria-current', 'true');
           playButton.dataset.playUrl = track.url;
           const title = document.createElement('span');
-          title.textContent = track.title;
+          title.textContent = getTrackDisplayName(track);
           playButton.append(title);
           if (Number.isFinite(track.duration)) {
             const duration = document.createElement('span');
@@ -199,15 +240,15 @@
             playButton.append(selectedLabel);
           }
 
-          const deleteButton = document.createElement('button');
-          deleteButton.type = 'button';
-          deleteButton.className = 'track-delete';
-          deleteButton.disabled = isRestoringPlayback;
-          deleteButton.dataset.deleteUrl = track.url;
-          deleteButton.textContent = '🗑️';
-          deleteButton.setAttribute('aria-label', `Delete ${track.title}`);
+          const detailsButton = document.createElement('button');
+          detailsButton.type = 'button';
+          detailsButton.className = 'track-details';
+          detailsButton.disabled = isRestoringPlayback;
+          detailsButton.dataset.detailsUrl = track.url;
+          detailsButton.textContent = '☰';
+          detailsButton.setAttribute('aria-label', `Details for ${getTrackDisplayName(track)}`);
 
-          item.append(playButton, deleteButton);
+          item.append(playButton, detailsButton);
           savedAudioList.append(item);
         }
         document.getElementById('add-audio-details').open = tracks.length === 0;
@@ -381,6 +422,60 @@
         });
       }
 
+      closeTrackDetailsButton.addEventListener('click', () => {
+        pendingDeleteUrl = undefined;
+        trackDetailsDialog.close();
+      });
+
+      trackDisplayNameForm.addEventListener('submit', async event => {
+        event.preventDefault();
+        if (!pendingDeleteUrl) return;
+        try {
+          const track = await getTrack(pendingDeleteUrl);
+          if (!track) return;
+          const displayName = trackDisplayNameInput.value.trim();
+          if (displayName) track.displayName = displayName;
+          else delete track.displayName;
+          await saveTrack(track);
+          await renderSavedTracks();
+          trackDetailsName.textContent = getTrackDisplayName(track);
+          status.textContent = 'Display name saved.';
+          pendingDeleteUrl = undefined;
+          trackDetailsDialog.close();
+        } catch (error) {
+          status.textContent = `Could not save display name: ${error.message}`;
+        }
+      });
+
+      dialogTrackDeleteButton.addEventListener('click', async () => {
+        const url = pendingDeleteUrl;
+        if (!url || !window.confirm('Delete this audio?')) return;
+        dialogTrackDeleteButton.disabled = true;
+        try {
+          await deleteTrack(url);
+          if (currentTrackUrl === url) {
+            audioPlayer.pause();
+            audioPlayer.removeAttribute('src');
+            audioPlayer.load();
+            if (currentObjectUrl) URL.revokeObjectURL(currentObjectUrl);
+            currentObjectUrl = undefined;
+            currentTrackUrl = undefined;
+            playPauseButton.textContent = 'Play';
+            updatePlayerButtons();
+            localStorage.removeItem(playbackStateKey);
+          }
+          forgetTrackPosition(url);
+          await renderSavedTracks();
+          status.textContent = 'Audio deleted.';
+          pendingDeleteUrl = undefined;
+          trackDetailsDialog.close();
+        } catch (error) {
+          status.textContent = `Could not delete audio: ${error.message}`;
+        } finally {
+          dialogTrackDeleteButton.disabled = false;
+        }
+      });
+
       if ('serviceWorker' in navigator) {
         navigator.serviceWorker.register('./sw.js')
           .then(() => navigator.serviceWorker.ready)
@@ -490,29 +585,15 @@
 
       savedAudioList.addEventListener('click', async event => {
         if (isRestoringPlayback) return;
-        const deleteButton = event.target.closest('button[data-delete-url]');
-        if (deleteButton) {
-          if (!window.confirm('Delete this audio?')) return;
-          const url = deleteButton.dataset.deleteUrl;
-          try {
-            await deleteTrack(url);
-            if (currentTrackUrl === url) {
-              audioPlayer.pause();
-              audioPlayer.removeAttribute('src');
-              audioPlayer.load();
-              if (currentObjectUrl) URL.revokeObjectURL(currentObjectUrl);
-              currentObjectUrl = undefined;
-              currentTrackUrl = undefined;
-              playPauseButton.textContent = 'Play';
-              updatePlayerButtons();
-              localStorage.removeItem(playbackStateKey);
-            }
-            forgetTrackPosition(url);
-            await renderSavedTracks();
-            status.textContent = 'Audio deleted.';
-          } catch (error) {
-            status.textContent = `Could not delete audio: ${error.message}`;
-          }
+        const detailsButton = event.target.closest('button[data-details-url]');
+        if (detailsButton) {
+          pendingDeleteUrl = detailsButton.dataset.detailsUrl;
+          const track = await getTrack(pendingDeleteUrl);
+          if (!track) return;
+          trackDetailsName.textContent = getTrackDisplayName(track);
+          trackDisplayNameInput.value = track.displayName || '';
+          trackDisplayNameInput.placeholder = track.title;
+          trackDetailsDialog.showModal();
           return;
         }
 
