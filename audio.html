@@ -530,6 +530,21 @@
         playPauseButton.textContent = 'Play';
         savePlaybackState(true);
       });
+      audioPlayer.addEventListener('ended', async () => {
+        const endedTrackUrl = currentTrackUrl;
+        if (!endedTrackUrl) return;
+
+        try {
+          const tracks = await getAllTracks();
+          if (currentTrackUrl !== endedTrackUrl) return;
+          const currentIndex = tracks.findIndex(track => track.url === endedTrackUrl);
+          const nextTrack = tracks[currentIndex + 1];
+          if (currentIndex < 0 || !nextTrack) return;
+          await selectTrack(nextTrack, true);
+        } catch (error) {
+          status.textContent = `Could not play the next track: ${error.message}`;
+        }
+      });
       audioPlayer.addEventListener('timeupdate', () => savePlaybackState());
       audioPlayer.addEventListener('seeked', () => savePlaybackState(true));
       window.addEventListener('pagehide', () => savePlaybackState(true));
