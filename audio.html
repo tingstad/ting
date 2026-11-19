@@ -54,6 +54,7 @@
     #saved-audio-list li:nth-child(odd) { background: #252525; }
     #saved-audio-list li:nth-child(even) { background: #303030; }
     #saved-audio-list li { display: flex; align-items: stretch; }
+    #saved-audio-list li.is-dragging { opacity: 0.55; }
     #saved-audio-list button {
       display: block;
       box-sizing: border-box;
@@ -73,6 +74,15 @@
       gap: 12px;
     }
     #saved-audio-list .track-duration { margin-left: auto; color: #aaa; white-space: nowrap; }
+    #saved-audio-list .track-drag-handle {
+      width: 40px;
+      flex: 0 0 40px;
+      text-align: center;
+      cursor: grab;
+      touch-action: none;
+      user-select: none;
+    }
+    #saved-audio-list .track-drag-handle:active { cursor: grabbing; }
     #saved-audio-list .track-details { width: 52px; flex: 0 0 52px; text-align: center; }
     #saved-audio-list .track-play.is-current {
       background: #414141;
@@ -165,6 +175,11 @@
       const closeTrackDetailsButton = document.getElementById('close-track-details');
       const dialogTrackDeleteButton = document.getElementById('dialog-track-delete');
       let pendingDeleteUrl;
+      let draggedTrackItem;
+      let dragPointerId;
+      let dragStartOrder;
+      let lastDragClientY;
+      let isSavingTrackOrder = false;
       let currentObjectUrl;
       let currentTrackUrl;
       let isRestoringPlayback = false;
@@ -191,11 +206,25 @@
 
       async function getAllTracks() {
         const database = await databasePromise;
-        return new Promise((resolve, reject) => {
+        const tracks = await new Promise((resolve, reject) => {
           const request = database.transaction('tracks').objectStore('tracks').getAll();
           request.onsuccess = () => resolve(request.result);
           request.onerror = () => reject(request.error);
         });
+        tracks.sort((a, b) => {
+          if (Number.isFinite(a.order) && Number.isFinite(b.order)) return a.order - b.order;
+          if (Number.isFinite(a.order)) return -1;
+          if (Number.isFinite(b.order)) return 1;
+          return a.url.localeCompare(b.url);
+        });
+        let nextOrder = tracks.reduce((highest, track) =>
+          Number.isFinite(track.order) ? Math.max(highest, track.order) : highest, -1);
+        for (const track of tracks) {
+          if (Number.isFinite(track.order)) continue;
+          track.order = ++nextOrder;
+          await saveTrack(track);
+        }
+        return tracks;
       }
 
       async function getTrack(url) {
@@ -219,6 +248,10 @@
 
       function getTrackDisplayName(track) {
         return track.displayName?.trim() || track.title;
+      }
+
+      function getNextTrackOrder(tracks) {
+        return tracks.reduce((highest, track) => Math.max(highest, track.order), -1) + 1;
       }
 
       async function renderSavedTracks() {
@@ -257,10 +290,61 @@
           detailsButton.textContent = '☰';
           detailsButton.setAttribute('aria-label', `Details for ${getTrackDisplayName(track)}`);
 
-          item.append(playButton, detailsButton);
+          const dragHandle = document.createElement('button');
+          dragHandle.type = 'button';
+          dragHandle.className = 'track-drag-handle';
+          dragHandle.disabled = isRestoringPlayback;
+          dragHandle.textContent = '⠿';
+          dragHandle.setAttribute('aria-label', `Reorder ${getTrackDisplayName(track)} with the arrow keys`);
+          dragHandle.setAttribute('aria-keyshortcuts', 'ArrowUp ArrowDown');
+
+          item.append(dragHandle, playButton, detailsButton);
           savedAudioList.append(item);
         }
         document.getElementById('add-audio-details').open = tracks.length === 0;
+      }
+
+      function getRenderedTrackOrder() {
+        return Array.from(savedAudioList.querySelectorAll('button[data-play-url]'), button => button.dataset.playUrl);
+      }
+
+      async function persistRenderedTrackOrder() {
+        const tracks = await getAllTracks();
+        const tracksByUrl = new Map(tracks.map(track => [track.url, track]));
+        for (const [order, url] of getRenderedTrackOrder().entries()) {
+          const track = tracksByUrl.get(url);
+          if (!track) continue;
+          track.order = order;
+          await saveTrack(track);
+        }
+      }
+
+      async function finishTrackReorder(saveOrder) {
+        if (!draggedTrackItem) return;
+        draggedTrackItem.classList.remove('is-dragging');
+        draggedTrackItem = undefined;
+        dragPointerId = undefined;
+        lastDragClientY = undefined;
+        const currentOrder = getRenderedTrackOrder();
+        const changed = dragStartOrder?.some((url, index) => currentOrder[index] !== url);
+        dragStartOrder = undefined;
+        if (!changed) return;
+
+        if (!saveOrder) {
+          await renderSavedTracks();
+          return;
+        }
+
+        isSavingTrackOrder = true;
+        try {
+          await persistRenderedTrackOrder();
+          status.textContent = 'Track order saved.';
+        } catch (error) {
+          await renderSavedTracks();
+          status.textContent = `Could not save track order: ${error.message}`;
+        } finally {
+          isSavingTrackOrder = false;
+        }
       }
 
       function readDuration(blob) {
@@ -570,7 +654,10 @@
             blob,
             duration: await readDuration(blob)
           };
-          const isFirstTrack = (await getAllTracks()).length === 0;
+          const existingTracks = await getAllTracks();
+          const existingTrack = existingTracks.find(existing => existing.url === url);
+          const isFirstTrack = existingTracks.length === 0;
+          track.order = existingTrack?.order ?? getNextTrackOrder(existingTracks);
           await saveTrack(track);
           await renderSavedTracks();
           if (isFirstTrack) await selectTrack(track);
@@ -602,7 +689,9 @@
             blob: file,
             duration
           };
-          const isFirstTrack = (await getAllTracks()).length === 0;
+          const existingTracks = await getAllTracks();
+          const isFirstTrack = existingTracks.length === 0;
+          track.order = getNextTrackOrder(existingTracks);
           await saveTrack(track);
           await renderSavedTracks();
           fileInput.value = '';
@@ -612,6 +701,63 @@
           status.textContent = `Could not save this file: ${error.message}`;
         } finally {
           fileInput.disabled = false;
+        }
+      });
+
+      savedAudioList.addEventListener('pointerdown', event => {
+        const dragHandle = event.target.closest('.track-drag-handle');
+        if (!dragHandle || isRestoringPlayback || isSavingTrackOrder || event.button !== 0) return;
+        draggedTrackItem = dragHandle.closest('li');
+        dragPointerId = event.pointerId;
+        dragStartOrder = getRenderedTrackOrder();
+        lastDragClientY = event.clientY;
+        draggedTrackItem.classList.add('is-dragging');
+        event.preventDefault();
+        // Capture on the stable list, so releasing over any row still ends the drag.
+        savedAudioList.setPointerCapture(event.pointerId);
+      });
+
+      window.addEventListener('pointermove', event => {
+        if (!draggedTrackItem || event.pointerId !== dragPointerId) return;
+        const movingUp = event.clientY < lastDragClientY;
+        lastDragClientY = event.clientY;
+        const targetItem = document.elementFromPoint(event.clientX, event.clientY)
+          ?.closest('#saved-audio-list li');
+        if (!targetItem || targetItem === draggedTrackItem) return;
+        savedAudioList.insertBefore(draggedTrackItem, movingUp ? targetItem : targetItem.nextSibling);
+      });
+
+      window.addEventListener('pointerup', event => {
+        if (event.pointerId === dragPointerId) void finishTrackReorder(true);
+      });
+
+      window.addEventListener('pointercancel', event => {
+        if (event.pointerId === dragPointerId) void finishTrackReorder(false);
+      });
+
+      savedAudioList.addEventListener('keydown', async event => {
+        const dragHandle = event.target.closest('.track-drag-handle');
+        if (!dragHandle || isRestoringPlayback || isSavingTrackOrder) return;
+        const item = dragHandle.closest('li');
+        if (event.key === 'ArrowUp' && item.previousElementSibling) {
+          event.preventDefault();
+          savedAudioList.insertBefore(item, item.previousElementSibling);
+        } else if (event.key === 'ArrowDown' && item.nextElementSibling) {
+          event.preventDefault();
+          savedAudioList.insertBefore(item.nextElementSibling, item);
+        } else {
+          return;
+        }
+
+        isSavingTrackOrder = true;
+        try {
+          await persistRenderedTrackOrder();
+          status.textContent = 'Track order saved.';
+        } catch (error) {
+          await renderSavedTracks();
+          status.textContent = `Could not save track order: ${error.message}`;
+        } finally {
+          isSavingTrackOrder = false;
         }
       });
 
