@@ -1,4 +1,5 @@
-const CACHE_NAME = 'offline-support-v4';
+const CACHE_NAME = 'offline-support-v05';
+const FALLBACK_CACHE_NAME = 'offline-support-fallback';
 
 self.addEventListener('install', event => {
   // Runs on first install, or when the browser detects a changed sw.js file.
@@ -6,13 +7,20 @@ self.addEventListener('install', event => {
 });
 
 self.addEventListener('activate', event => {
-  // Runs after installation; remove old caches and take control of open pages.
-  event.waitUntil(
-    caches.keys().then(keys => Promise.all(
-      keys.filter(key => key !== CACHE_NAME).map(key => caches.delete(key))
-    ))
-  );
-  self.clients.claim();
+  // Preserve old app resources as a last-resort offline fallback.
+  event.waitUntil((async () => {
+    const fallbackCache = await caches.open(FALLBACK_CACHE_NAME);
+    for (const name of (await caches.keys()).filter(name =>
+      name.startsWith('offline-support-') && name !== CACHE_NAME && name !== FALLBACK_CACHE_NAME
+    )) {
+      const oldCache = await caches.open(name);
+      for (const request of await oldCache.keys()) {
+        await fallbackCache.put(request, await oldCache.match(request));
+      }
+      await caches.delete(name);
+    }
+    await self.clients.claim();
+  })());
 });
 
 self.addEventListener('message', event => {
@@ -59,6 +67,9 @@ self.addEventListener('fetch', event => {
         return response;
       } catch (error) {
         console.error('Could not fetch audio.html:', request, error);
+        const fallbackCache = await caches.open(FALLBACK_CACHE_NAME);
+        const fallbackCached = await fallbackCache.match(request);
+        if (fallbackCached) return fallbackCached;
         return new Response('audio.html is not available offline yet.', {
           status: 503,
           headers: { 'Content-Type': 'text/plain; charset=utf-8' }
@@ -75,6 +86,9 @@ self.addEventListener('fetch', event => {
       console.error('Could not fetch:', request, error);
       const cached = await cache.match(request);
       if (cached) return cached;
+      const fallbackCache = await caches.open(FALLBACK_CACHE_NAME);
+      const fallbackCached = await fallbackCache.match(request);
+      if (fallbackCached) return fallbackCached;
       return new Response('This resource is not available offline.', {
         status: 503,
         headers: { 'Content-Type': 'text/plain; charset=utf-8' }
