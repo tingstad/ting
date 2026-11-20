@@ -801,7 +801,7 @@
         dragStartOrder = getRenderedListOrder();
         lastDragClientY = event.clientY;
         draggedTrackItem.classList.add('is-dragging');
-        event.preventDefault();
+        dragHandle.focus({ preventScroll: true });
         // Capture on the stable list, so releasing over any row still ends the drag.
         savedAudioList.setPointerCapture(event.pointerId);
       });
