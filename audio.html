@@ -838,6 +838,7 @@
           return;
         }
 
+        dragHandle.focus({ preventScroll: true });
         isSavingTrackOrder = true;
         try {
           await persistRenderedTrackOrder();
