@@ -90,12 +90,18 @@
       border-block: 1px dashed #f3c969;
     }
     #saved-audio-list .autoplay-cutoff-row .track-drag-handle {
+      position: relative;
       width: 100%;
       flex: 1;
       color: #f3c969;
       text-align: center;
       font-size: 0.85em;
       font-weight: 600;
+    }
+    #saved-audio-list .autoplay-cutoff-row .track-drag-handle::before {
+      content: '⠿';
+      position: absolute;
+      left: 12px;
     }
     #saved-audio-list .track-details { width: 52px; flex: 0 0 52px; text-align: center; }
     #saved-audio-list .track-play.is-current {
