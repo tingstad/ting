@@ -30,6 +30,7 @@
       flex-direction: column;
     }
     h1 { font-size: 24px; }
+    #version { color: #888; font-size: 0.55em; font-weight: 400; white-space: nowrap; }
     p { color: #aaa; }
     audio { width: 100%; margin-top: 20px; }
     .seek-controls { display: flex; gap: 8px; width: 100%; }
@@ -128,7 +129,7 @@
 </head>
 <body>
   <main>
-    <h1>Audio</h1>
+    <h1>Audio <span id="version">v<!--cached-version-->?<!---->/<!--sw-version-->?<!----></span></h1>
 
     <details id="add-audio-details" open>
       <summary>Add audio</summary>
