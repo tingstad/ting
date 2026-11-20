@@ -83,6 +83,20 @@
       user-select: none;
     }
     #saved-audio-list .track-drag-handle:active { cursor: grabbing; }
+    #saved-audio-list li.autoplay-cutoff-row {
+      min-height: 38px;
+      align-items: center;
+      background: #171717;
+      border-block: 1px dashed #f3c969;
+    }
+    #saved-audio-list .autoplay-cutoff-row .track-drag-handle {
+      width: 100%;
+      flex: 1;
+      color: #f3c969;
+      text-align: center;
+      font-size: 0.85em;
+      font-weight: 600;
+    }
     #saved-audio-list .track-details { width: 52px; flex: 0 0 52px; text-align: center; }
     #saved-audio-list .track-play.is-current {
       background: #414141;
@@ -186,6 +200,7 @@
       let lastSavedTime = -2;
       const playbackStateKey = 'offline-audio-playback';
       const trackPositionsKey = 'offline-audio-positions';
+      const autoplayCutoffKey = 'offline-audio-autoplay-cutoff-position';
 
       function updatePlayerButtons() {
         const ready = Boolean(currentTrackUrl) && !isRestoringPlayback;
@@ -250,6 +265,30 @@
         return track.displayName?.trim() || track.title;
       }
 
+      function getSavedAutoplayCutoffPosition() {
+        try {
+          const savedPosition = localStorage.getItem(autoplayCutoffKey);
+          if (savedPosition === null) return null;
+          const position = Number(savedPosition);
+          return Number.isInteger(position) && position >= 0 ? position : null;
+        } catch {
+          return null;
+        }
+      }
+
+      function getAutoplayCutoffPosition(trackCount) {
+        const savedPosition = getSavedAutoplayCutoffPosition();
+        return savedPosition === null ? trackCount : Math.min(savedPosition, trackCount);
+      }
+
+      function adjustAutoplayCutoffAfterDelete(deletedTrackIndex) {
+        const cutoffPosition = getSavedAutoplayCutoffPosition();
+        if (cutoffPosition === null || deletedTrackIndex >= cutoffPosition) return;
+        try {
+          localStorage.setItem(autoplayCutoffKey, String(Math.max(0, cutoffPosition - 1)));
+        } catch {}
+      }
+
       function getNextTrackOrder(tracks) {
         return tracks.reduce((highest, track) => Math.max(highest, track.order), -1) + 1;
       }
@@ -257,7 +296,24 @@
       async function renderSavedTracks() {
         savedAudioList.replaceChildren();
         const tracks = await getAllTracks();
-        for (const track of tracks) {
+        const cutoffPosition = getAutoplayCutoffPosition(tracks.length);
+        const addCutoffRow = () => {
+          const item = document.createElement('li');
+          item.className = 'autoplay-cutoff-row';
+          const handle = document.createElement('button');
+          handle.type = 'button';
+          handle.className = 'track-drag-handle';
+          handle.disabled = isRestoringPlayback;
+          handle.textContent = 'Autoplay cut-off — drag to set limit';
+          handle.setAttribute('aria-label', 'Move autoplay cut-off with the pointer or arrow keys');
+          handle.setAttribute('aria-keyshortcuts', 'ArrowUp ArrowDown');
+          item.append(handle);
+          savedAudioList.append(item);
+        };
+
+        if (cutoffPosition === 0) addCutoffRow();
+        for (let index = 0; index < tracks.length; index += 1) {
+          const track = tracks[index];
           const item = document.createElement('li');
           const playButton = document.createElement('button');
           playButton.type = 'button';
@@ -300,12 +356,29 @@
 
           item.append(dragHandle, playButton, detailsButton);
           savedAudioList.append(item);
+          if (index + 1 === cutoffPosition && cutoffPosition > 0) addCutoffRow();
         }
         document.getElementById('add-audio-details').open = tracks.length === 0;
       }
 
       function getRenderedTrackOrder() {
         return Array.from(savedAudioList.querySelectorAll('button[data-play-url]'), button => button.dataset.playUrl);
+      }
+
+      function getRenderedListOrder() {
+        return Array.from(savedAudioList.children, item =>
+          item.classList.contains('autoplay-cutoff-row')
+            ? 'autoplay-cutoff'
+            : item.querySelector('button[data-play-url]')?.dataset.playUrl
+        );
+      }
+
+      function getRenderedAutoplayCutoffPosition() {
+        const cutoffRow = savedAudioList.querySelector('.autoplay-cutoff-row');
+        if (!cutoffRow) return getRenderedTrackOrder().length;
+        return Array.from(savedAudioList.children)
+          .slice(0, Array.prototype.indexOf.call(savedAudioList.children, cutoffRow))
+          .filter(item => item.querySelector('button[data-play-url]')).length;
       }
 
       async function persistRenderedTrackOrder() {
@@ -317,6 +390,12 @@
           track.order = order;
           await saveTrack(track);
         }
+        const cutoffPosition = getRenderedAutoplayCutoffPosition();
+        if (cutoffPosition >= getRenderedTrackOrder().length) {
+          localStorage.removeItem(autoplayCutoffKey);
+        } else {
+          localStorage.setItem(autoplayCutoffKey, String(cutoffPosition));
+        }
       }
 
       async function finishTrackReorder(saveOrder) {
@@ -325,7 +404,7 @@
         draggedTrackItem = undefined;
         dragPointerId = undefined;
         lastDragClientY = undefined;
-        const currentOrder = getRenderedTrackOrder();
+        const currentOrder = getRenderedListOrder();
         const changed = dragStartOrder?.some((url, index) => currentOrder[index] !== url);
         dragStartOrder = undefined;
         if (!changed) return;
@@ -545,7 +624,10 @@
         if (!url || !window.confirm('Delete this audio?')) return;
         dialogTrackDeleteButton.disabled = true;
         try {
+          const tracksBeforeDelete = await getAllTracks();
+          const deletedTrackIndex = tracksBeforeDelete.findIndex(track => track.url === url);
           await deleteTrack(url);
+          adjustAutoplayCutoffAfterDelete(deletedTrackIndex);
           if (currentTrackUrl === url) {
             audioPlayer.pause();
             audioPlayer.removeAttribute('src');
@@ -622,8 +704,9 @@
           const tracks = await getAllTracks();
           if (currentTrackUrl !== endedTrackUrl) return;
           const currentIndex = tracks.findIndex(track => track.url === endedTrackUrl);
+          const cutoffPosition = getAutoplayCutoffPosition(tracks.length);
           const nextTrack = tracks[currentIndex + 1];
-          if (currentIndex < 0 || !nextTrack) return;
+          if (currentIndex < 0 || !nextTrack || currentIndex + 1 >= cutoffPosition) return;
           await selectTrack(nextTrack, true);
         } catch (error) {
           status.textContent = `Could not play the next track: ${error.message}`;
@@ -709,7 +792,7 @@
         if (!dragHandle || isRestoringPlayback || isSavingTrackOrder || event.button !== 0) return;
         draggedTrackItem = dragHandle.closest('li');
         dragPointerId = event.pointerId;
-        dragStartOrder = getRenderedTrackOrder();
+        dragStartOrder = getRenderedListOrder();
         lastDragClientY = event.clientY;
         draggedTrackItem.classList.add('is-dragging');
         event.preventDefault();
